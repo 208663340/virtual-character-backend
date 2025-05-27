@@ -1,6 +1,5 @@
 server:
   port: 8002
-
 spring:
   application:
     name: short-link-admin
@@ -11,10 +10,10 @@ spring:
     redis:
       host: 127.0.0.1
       port: 6379
-#      password: 123456
 xunfei:
-  appid: 5d0d0a0f
-  appkey: 0d0d0a0f-0d0d-0d0d-0d0d-0d0d0d0d0d0d
+  appsecret: OGZkZGQ5ZDY0Yzc4MTllZWI3ZmU2MDU4
+  appkey: e8565c438f59b301616e0498a86ad95d
+  appflow: 7332665061114077184
 
 short-link:
   flow-limit:

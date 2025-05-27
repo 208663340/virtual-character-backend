@@ -266,3 +266,211 @@ CREATE TABLE `agent_properties`
     `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_0` (
+                                   `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                   `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                   `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                   `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                   `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                   `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                   `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                   `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                   PRIMARY KEY (`id`),
+                                   INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716344345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_1` (
+                                   `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                   `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                   `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                   `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                   `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                   `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                   `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                   `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                   PRIMARY KEY (`id`),
+                                   INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716354345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_2` (
+                                   `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                   `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                   `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                   `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                   `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                   `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                   `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                   `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                   PRIMARY KEY (`id`),
+                                   INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716364345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_3` (
+                                   `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                   `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                   `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                   `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                   `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                   `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                   `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                   `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                   PRIMARY KEY (`id`),
+                                   INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716374345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_4` (
+                                   `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                   `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                   `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                   `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                   `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                   `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                   `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                   `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                   PRIMARY KEY (`id`),
+                                   INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716384345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_5` (
+                                   `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                   `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                   `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                   `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                   `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                   `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                   `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                   `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                   PRIMARY KEY (`id`),
+                                   INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716394345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_6` (
+                                   `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                   `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                   `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                   `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                   `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                   `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                   `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                   `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                   PRIMARY KEY (`id`),
+                                   INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716404345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_7` (
+                                   `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                   `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                   `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                   `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                   `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                   `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                   `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                   `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                   PRIMARY KEY (`id`),
+                                   INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716414345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_8` (
+                                   `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                   `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                   `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                   `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                   `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                   `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                   `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                   `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                   PRIMARY KEY (`id`),
+                                   INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716424345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_9` (
+                                   `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                   `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                   `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                   `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                   `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                   `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                   `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                   `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                   PRIMARY KEY (`id`),
+                                   INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716434345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_10` (
+                                    `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                    `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                    `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                    `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                    `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                    `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                    `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                    `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                    PRIMARY KEY (`id`),
+                                    INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716444345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_11` (
+                                    `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                    `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                    `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                    `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                    `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                    `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                    `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                    `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                    PRIMARY KEY (`id`),
+                                    INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716454345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_12` (
+                                    `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                    `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                    `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                    `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                    `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                    `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                    `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                    `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                    PRIMARY KEY (`id`),
+                                    INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716464345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_13` (
+                                    `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                    `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                    `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                    `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                    `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                    `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                    `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                    `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                    PRIMARY KEY (`id`),
+                                    INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716474345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_14` (
+                                    `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                    `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                    `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                    `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                    `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                    `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                    `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                    `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                    PRIMARY KEY (`id`),
+                                    INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716484345346543 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `agent_message_15` (
+                                    `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+                                    `agent_id`      bigint(20) DEFAULT NULL COMMENT '智能体id',
+                                    `chat_message`  varchar(256) DEFAULT NULL COMMENT '智能体消息',
+                                    `user_id`       bigint(20) DEFAULT NULL COMMENT '用户id',
+                                    `user_message`  varchar(256) DEFAULT NULL COMMENT '用户消息',
+                                    `is_success`    tinyint(1) DEFAULT 1 COMMENT '是否完成对话',
+                                    `create_time`   datetime DEFAULT NULL COMMENT '创建时间',
+                                    `del_flag`      tinyint(1) DEFAULT NULL COMMENT '删除标识 0：未删除 1：已删除',
+                                    PRIMARY KEY (`id`),
+                                    INDEX idx_user_id (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1716494345346543 DEFAULT CHARSET=utf8mb4;

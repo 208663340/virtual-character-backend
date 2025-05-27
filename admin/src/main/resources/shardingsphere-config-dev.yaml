@@ -15,8 +15,18 @@ rules:
           standard:
             shardingColumn: username
             shardingAlgorithmName: user_table_hash_mod
+      agent_message:
+        actualDataNodes: ds_0.agent_message_${0..15}
+        tableStrategy:
+          standard:
+            shardingColumn: user_id
+            shardingAlgorithmName: agent_message_table_hash_mod
     shardingAlgorithms:
       user_table_hash_mod:
+        type: HASH_MOD
+        props:
+          sharding-count: 16
+      agent_message_table_hash_mod:
         type: HASH_MOD
         props:
           sharding-count: 16

@@ -90,6 +90,15 @@ public class AgentPropertiesServiceImpl extends ServiceImpl<AgentPropertiesMappe
         pageInfo.setSize(agentPropertiesDOPage.getSize());
         return pageInfo;
     }
+
+    @Override
+    public List<AgentPropertiesDO> listTop10() {
+        LambdaQueryWrapper<AgentPropertiesDO> queryWrapper = Wrappers.lambdaQuery(AgentPropertiesDO.class)
+                .eq(AgentPropertiesDO::getDelFlag, 0)
+                .orderByDesc(AgentPropertiesDO::getCreateTime)
+                .last("limit 10"); // Limit to top 10
+        return baseMapper.selectList(queryWrapper);
+    }
 }
 
 

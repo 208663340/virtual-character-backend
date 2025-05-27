@@ -6,8 +6,8 @@ import java.nio.charset.StandardCharsets;
 public class WorkflowRequest {
 
     public static void main(String[] args) throws Exception {
-        String apiKey = "{API_KEy}";
-        String apiSecret = "{API_SECRET}";
+        String apiKey = "e8565c438f59b301616e0498a86ad95d";
+        String apiSecret = "OGZkZGQ5ZDY0Yzc4MTllZWI3ZmU2MDU4";
 
         String urlString = "https://xingchen-api.xf-yun.com/workflow/v1/chat/completions";
         URL url = new URL(urlString);
@@ -28,10 +28,8 @@ public class WorkflowRequest {
         // 构造 JSON 数据
         String payload = """
                 {
-                    "flow_id": "7243957477710561280",
-                    "uid": "123",
-                    "parameters": {"AGENT_USER_INPUT": "你好"},
-                    "ext": {"bot_id": "adjfidjf", "caller": "workflow"},
+                    "flow_id": "7332665061114077184",
+                    "parameters": {"AGENT_USER_INPUT": "你好,你是谁"},
                     "stream": false
                 }
                 """;

@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.nageoffer.shortlink.admin.dto.req.agent.AgentPropertiesReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.agent.AgentPropertiesRespDTO;
 
+import java.util.List;
+
 /**
 * @author 20866
 * @description 针对表【agent_properties】的数据库操作Service
@@ -36,4 +38,9 @@ public interface AgentPropertiesService extends IService<AgentPropertiesDO> {
      * 分页查询智能体配置
      */
     PageInfo<AgentPropertiesRespDTO> getByPage(AgentPropertiesReqDTO requestParam);
+
+    /**
+     * 查询前10个智能体配置
+     */
+    List<AgentPropertiesDO> listTop10();
 }

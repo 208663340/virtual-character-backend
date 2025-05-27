@@ -1,0 +1,8 @@
+接口地址：
+http(s)://xingchen-api.xf-yun.com/workflow/v1/chat/completions
+API Secret:
+OGZkZGQ5ZDY0Yzc4MTllZWI3ZmU2MDU4
+API Key：
+e8565c438f59b301616e0498a86ad95d
+API Flowid
+7332665061114077184
