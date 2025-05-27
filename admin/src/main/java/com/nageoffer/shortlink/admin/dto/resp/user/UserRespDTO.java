@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-package com.nageoffer.shortlink.admin.dto.resp;
+package com.nageoffer.shortlink.admin.dto.resp.user;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.nageoffer.shortlink.admin.common.serialize.PhoneDesensitizationSerializer;
 import lombok.Data;
 
 /**
@@ -24,7 +26,7 @@ import lombok.Data;
  
  */
 @Data
-public class UserActualRespDTO {
+public class UserRespDTO {
 
     /**
      * id
@@ -44,6 +46,7 @@ public class UserActualRespDTO {
     /**
      * 手机号
      */
+    @JsonSerialize(using = PhoneDesensitizationSerializer.class)
     private String phone;
 
     /**

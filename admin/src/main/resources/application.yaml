@@ -12,10 +12,11 @@ spring:
       host: 127.0.0.1
       port: 6379
 #      password: 123456
+xunfei:
+  appid: 5d0d0a0f
+  appkey: 0d0d0a0f-0d0d-0d0d-0d0d-0d0d0d0d0d0d
 
 short-link:
-  group:
-    max-num: 20
   flow-limit:
     enable: true
     time-window: 1

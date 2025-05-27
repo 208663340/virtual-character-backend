@@ -15,39 +15,23 @@
  * limitations under the License.
  */
 
-package com.nageoffer.shortlink.admin.dto.req;
+package com.nageoffer.shortlink.admin.dto.resp.user;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
- * 用户注册请求参数
+ * 用户登录接口返回响应
  
  */
 @Data
-public class UserRegisterReqDTO {
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserLoginRespDTO {
 
     /**
-     * 用户名
+     * 用户Token
      */
-    private String username;
-
-    /**
-     * 密码
-     */
-    private String password;
-
-    /**
-     * 真实姓名
-     */
-    private String realName;
-
-    /**
-     * 手机号
-     */
-    private String phone;
-
-    /**
-     * 邮箱
-     */
-    private String mail;
+    private String token;
 }

@@ -31,11 +31,11 @@ import com.nageoffer.shortlink.admin.common.convention.exception.ServiceExceptio
 import com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum;
 import com.nageoffer.shortlink.admin.dao.entity.UserDO;
 import com.nageoffer.shortlink.admin.dao.mapper.UserMapper;
-import com.nageoffer.shortlink.admin.dto.req.UserLoginReqDTO;
-import com.nageoffer.shortlink.admin.dto.req.UserRegisterReqDTO;
-import com.nageoffer.shortlink.admin.dto.req.UserUpdateReqDTO;
-import com.nageoffer.shortlink.admin.dto.resp.UserLoginRespDTO;
-import com.nageoffer.shortlink.admin.dto.resp.UserRespDTO;
+import com.nageoffer.shortlink.admin.dto.req.user.UserLoginReqDTO;
+import com.nageoffer.shortlink.admin.dto.req.user.UserRegisterReqDTO;
+import com.nageoffer.shortlink.admin.dto.req.user.UserUpdateReqDTO;
+import com.nageoffer.shortlink.admin.dto.resp.user.UserLoginRespDTO;
+import com.nageoffer.shortlink.admin.dto.resp.user.UserRespDTO;
 import com.nageoffer.shortlink.admin.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBloomFilter;
