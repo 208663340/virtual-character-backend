@@ -2,11 +2,13 @@ package com.nageoffer.shortlink.admin.dao.entity;
 
 import java.util.Date;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 /**
- * 
+ * 智能体消息详情表
  * @TableName agent_message_0
  */
 @Data
@@ -15,32 +17,48 @@ public class AgentMessage{
     /**
      * ID
      */
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
-     * 智能体id
+     * 会话ID
      */
-    private Long agentId;
+    private String sessionId;
 
     /**
-     * 智能体消息
+     * 消息类型：1-用户消息，2-AI回复
      */
-    private String chatMessage;
+    private Integer messageType;
 
     /**
-     * 用户id
+     * 消息内容
      */
-    private Long userId;
+    private String messageContent;
 
     /**
-     * 用户消息
+     * 消息序号，同一会话内递增
      */
-    private String userMessage;
+    private Integer messageSeq;
 
     /**
-     * 是否完成对话
+     * 父消息ID，用于消息关联
      */
-    private Integer isSuccess;
+    private Long parentMsgId;
+
+    /**
+     * Token消耗数量
+     */
+    private Integer tokenCount;
+
+    /**
+     * 响应时间(毫秒)
+     */
+    private Integer responseTime;
+
+    /**
+     * 错误信息（如果处理失败）
+     */
+    private String errorMessage;
 
     /**
      * 创建时间

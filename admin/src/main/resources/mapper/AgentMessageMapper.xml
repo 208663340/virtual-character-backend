@@ -6,18 +6,21 @@
 
     <resultMap id="BaseResultMap" type="com.nageoffer.shortlink.admin.dao.entity.AgentMessage">
             <id property="id" column="id" />
-            <result property="agentId" column="agent_id" />
-            <result property="chatMessage" column="chat_message" />
-            <result property="userId" column="user_id" />
-            <result property="userMessage" column="user_message" />
-            <result property="isSuccess" column="is_success" />
+            <result property="sessionId" column="session_id" />
+            <result property="messageType" column="message_type" />
+            <result property="messageContent" column="message_content" />
+            <result property="messageSeq" column="message_seq" />
+            <result property="parentMsgId" column="parent_msg_id" />
+            <result property="tokenCount" column="token_count" />
+            <result property="responseTime" column="response_time" />
+            <result property="errorMessage" column="error_message" />
             <result property="createTime" column="create_time" />
             <result property="delFlag" column="del_flag" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,agent_id,chat_message,user_id,user_message,is_success,
-        create_time,del_flag
+        id,session_id,message_type,message_content,message_seq,parent_msg_id,
+        token_count,response_time,error_message,create_time,del_flag
     </sql>
 
 

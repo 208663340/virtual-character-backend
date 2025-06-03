@@ -1,5 +1,3 @@
-接口地址：
-http(s)://xingchen-api.xf-yun.com/workflow/v1/chat/completions
 API Secret:
 OGZkZGQ5ZDY0Yzc4MTllZWI3ZmU2MDU4
 API Key：

@@ -1,5 +1,8 @@
 package com.nageoffer.shortlink.admin.config;
 
+import lombok.Data;
+import org.springframework.context.annotation.Configuration;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -11,7 +14,9 @@ import java.util.Properties;
  * @author : jun
  * @date : 2021年04月02日
  */
-public class PropertiesConfig {
+@Configuration
+@Data
+public class XunfeiPropertiesConfig {
     private static final String appId;
     private static final String apiKey;
     private static final String apiSecret;
@@ -27,7 +32,7 @@ public class PropertiesConfig {
         Properties properties = new Properties();
 
         try {
-            properties.load(new FileInputStream(PropertiesConfig.class.getResource("/").toURI().getPath() + "test.properties"));
+            properties.load(new FileInputStream(XunfeiPropertiesConfig.class.getResource("/").toURI().getPath() + "test.properties"));
         } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
         }

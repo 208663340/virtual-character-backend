@@ -15,11 +15,13 @@ rules:
           standard:
             shardingColumn: username
             shardingAlgorithmName: user_table_hash_mod
+      agent_conversation:
+        actualDataNodes: ds_0.agent_conversation
       agent_message:
         actualDataNodes: ds_0.agent_message_${0..15}
         tableStrategy:
           standard:
-            shardingColumn: user_id
+            shardingColumn: session_id
             shardingAlgorithmName: agent_message_table_hash_mod
     shardingAlgorithms:
       user_table_hash_mod:

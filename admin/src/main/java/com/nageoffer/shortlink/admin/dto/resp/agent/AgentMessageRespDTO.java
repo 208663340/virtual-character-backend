@@ -1,21 +1,22 @@
 package com.nageoffer.shortlink.admin.dto.resp.agent;
 
-import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.util.Date;
-
 /**
- * 
- * @TableName agent_message_0
+ * 智能体消息响应DTO
  */
 @Data
-@TableName("agent_message")
 public class AgentMessageRespDTO {
+
     /**
-     * ID
+     * 会话ID
      */
-    private Long id;
+    private String sessionId;
+
+    /**
+     * 用户名
+     */
+    private String userName;
 
     /**
      * 智能体id
@@ -23,33 +24,37 @@ public class AgentMessageRespDTO {
     private Long agentId;
 
     /**
-     * 智能体消息
-     */
-    private String chatMessage;
-
-    /**
-     * 用户id
-     */
-    private Long userId;
-
-    /**
      * 用户消息
      */
     private String userMessage;
 
     /**
-     * 是否完成对话
+     * 智能体消息
      */
-    private Integer isSuccess;
+    private String chatMessage;
 
     /**
-     * 创建时间
+     * 消息序号
      */
-    private Date createTime;
+    private Integer messageSeq;
 
     /**
-     * 删除标识 0：未删除 1：已删除
+     * Token消耗数量
      */
-    private Integer delFlag;
+    private Integer tokenCount;
 
+    /**
+     * 响应时间(毫秒)
+     */
+    private Integer responseTime;
+
+    /**
+     * 是否成功
+     */
+    private Integer isSuccess = 1;
+
+    /**
+     * 错误信息
+     */
+    private String errorMessage;
 }

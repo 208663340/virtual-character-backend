@@ -1,6 +1,7 @@
 package com.nageoffer.shortlink.admin.dto.req.agent;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Builder;
 import lombok.Data;
 
 import java.util.Date;

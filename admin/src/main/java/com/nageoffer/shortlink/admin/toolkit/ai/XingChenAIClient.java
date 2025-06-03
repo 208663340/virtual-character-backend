@@ -23,6 +23,11 @@ public class XingChenAIClient {
     private String flowId;
 
     public void chat(String input, boolean stream, OutputStream outputStream, Consumer<String> callback) throws Exception {
+        chat(input, stream, outputStream, callback, apiKey, apiSecret, flowId);
+    }
+
+    public void chat(String input, boolean stream, OutputStream outputStream, Consumer<String> callback, 
+                     String customApiKey, String customApiSecret, String customFlowId) throws Exception {
         String urlString = "https://xingchen-api.xf-yun.com/workflow/v1/chat/completions";
         URL url = new URL(urlString);
         HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
@@ -34,7 +39,7 @@ public class XingChenAIClient {
 
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setRequestProperty("Accept", "text/event-stream");
-        conn.setRequestProperty("Authorization", "Bearer " + apiKey + ":" + apiSecret);
+        conn.setRequestProperty("Authorization", "Bearer " + customApiKey + ":" + customApiSecret);
         conn.setDoOutput(true);
 
         String payload = String.format("""
@@ -45,7 +50,7 @@ public class XingChenAIClient {
             "ext": {"bot_id": "adjfidjf", "caller": "workflow"},
             "stream": %b
         }
-        """, flowId, input, stream);
+        """, customFlowId, input, stream);
 
         try (OutputStream os = conn.getOutputStream()) {
             byte[] inputBytes = payload.getBytes(StandardCharsets.UTF_8);

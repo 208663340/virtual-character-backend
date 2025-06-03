@@ -1,4 +1,4 @@
-package com.xinye.iot.common.utils.base;
+package com.nageoffer.shortlink.admin.toolkit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

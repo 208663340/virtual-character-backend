@@ -1,4 +1,4 @@
-package cn.xfyun.util;
+package com.nageoffer.shortlink.admin.toolkit.mediatools;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

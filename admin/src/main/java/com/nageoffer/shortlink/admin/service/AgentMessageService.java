@@ -1,7 +1,15 @@
 package com.nageoffer.shortlink.admin.service;
 
-import com.nageoffer.shortlink.admin.dao.entity.AgentMessage;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.nageoffer.shortlink.admin.dao.entity.AgentMessage;
+import com.nageoffer.shortlink.admin.dto.req.agent.AgentChatReqDTO;
+import com.nageoffer.shortlink.admin.dto.req.user.UserMessageReqDTO;
+import com.nageoffer.shortlink.admin.dto.resp.agent.AgentMessageHistoryRespDTO;
+import com.nageoffer.shortlink.admin.dto.resp.agent.AgentMessageRespDTO;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.util.List;
 
 /**
 * @author 20866
@@ -11,13 +19,28 @@ import com.baomidou.mybatisplus.extension.service.IService;
 public interface AgentMessageService extends IService<AgentMessage> {
 
     /**
-     * 保存用户消息
+     * SSE流式聊天
      */
-    void saveUserMessage(String message);
+    SseEmitter chatWithSse(UserMessageReqDTO requestParam);
+    /**
+     * 统一userId获取器
+     */
+    Long getUserIdByUsername(String username);
 
     /**
-     * 保存AI响应消息
+     * 保存聊天消息
      */
-    void saveAIMessage(String message);
+    void saveMessage(AgentMessageRespDTO agentMessage);
+
+    /**
+     * 查询会话历史消息
+     */
+    List<AgentMessageHistoryRespDTO> getConversationHistory(String sessionId);
+
+    /**
+     * 分页查询历史消息
+     */
+    IPage<AgentMessageHistoryRespDTO> pageHistoryMessages(String username, String sessionId, Integer current, Integer size);
+
 
 }

@@ -1,7 +1,6 @@
-package com.xinye.iot.common.config.thread;
+package com.nageoffer.shortlink.admin.config;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.xinye.iot.common.utils.base.Threads;
+import com.nageoffer.shortlink.admin.toolkit.Threads;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -78,18 +77,4 @@ public class ThreadPoolConfig {
         return simpleAsyncTaskExecutor;
     }
 
-    /**
-     * Socket连接线程池
-     * @return 线程池
-     */
-    @Bean(name = "socketThreadPool")
-    protected ThreadPoolExecutor socketInfoThreadPool() {
-        ThreadFactory socketThreadFactory = new ThreadFactoryBuilder().setNameFormat("ins-data-info-%d").build();
-        return new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveSeconds, TimeUnit.MILLISECONDS, new SynchronousQueue<Runnable>(), socketThreadFactory);
-    }
-    @Bean(name = "socketThreadPoolTest")
-    protected ThreadPoolExecutor socketInfoThreadPoolTest(){
-        ThreadFactory socketThreadFactory = new ThreadFactoryBuilder().setNameFormat("ins-data-info-test-%d").build();
-        return new ThreadPoolExecutor(10, 10, 300, TimeUnit.MILLISECONDS, new SynchronousQueue<Runnable>(), socketThreadFactory);
-    }
 }

@@ -1,4 +1,4 @@
-package cn.xfyun.util;
+package com.nageoffer.shortlink.admin.toolkit.mediatools;
 
 import javax.sound.sampled.*;
 

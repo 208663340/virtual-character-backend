@@ -4,14 +4,19 @@ import lombok.Data;
 
 @Data
 public class UserMessageReqDTO {
+
     /**
-     * 用户ID
+     * 用户名
      */
-    Long UserId;
+    private String userName;
+
+    /**
+     * AgentID
+     */
+    private Long agentId;
 
     /**
      * 用户输入信息
      */
-    String InputMessage;
-
+    private String inputMessage;
 }
