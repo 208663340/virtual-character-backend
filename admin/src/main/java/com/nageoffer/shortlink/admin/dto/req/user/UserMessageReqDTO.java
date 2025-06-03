@@ -19,4 +19,9 @@ public class UserMessageReqDTO {
      * 用户输入信息
      */
     private String inputMessage;
+
+    /**
+     * 消息序号
+     */
+    private int messageSeq;
 }

@@ -3,12 +3,11 @@ package com.nageoffer.shortlink.admin.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
 import com.nageoffer.shortlink.admin.common.convention.result.Results;
-import com.nageoffer.shortlink.admin.dto.req.agent.AgentChatReqDTO;
 import com.nageoffer.shortlink.admin.dto.req.agent.AgentConversationPageReqDTO;
 import com.nageoffer.shortlink.admin.dto.req.user.UserMessageReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.agent.AgentConversationRespDTO;
 import com.nageoffer.shortlink.admin.dto.resp.agent.AgentMessageHistoryRespDTO;
-import com.nageoffer.shortlink.admin.dto.resp.agent.AgentMessageRespDTO;
+
 import com.nageoffer.shortlink.admin.service.AgentConversationService;
 import com.nageoffer.shortlink.admin.service.AgentMessageService;
 import lombok.RequiredArgsConstructor;
@@ -36,16 +35,16 @@ public class AgentController {
      * @param requestParam
      * @return
      */
-    @PostMapping("/api/short-link/admin/v1/agent/chat")
+    @PostMapping("/api/xunzhi-agent/admin/v1/agent/chat")
     public SseEmitter chat(@RequestBody UserMessageReqDTO requestParam) {
-        return agentMessageService.chatWithSse(requestParam);
+        return agentMessageService.agentChatSse(requestParam);
     }
 
 
     /**
      * 分页查询用户会话列表
      */
-    @GetMapping("/api/short-link/admin/v1/agent/conversations")
+    @GetMapping("/api/xunzhi-agent/admin/v1/agent/conversations")
     public Result<IPage<AgentConversationRespDTO>> pageConversations(
             @RequestHeader("username") String username,
             AgentConversationPageReqDTO requestParam) {
@@ -55,7 +54,7 @@ public class AgentController {
     /**
      * 查询会话历史消息
      */
-    @GetMapping("/api/short-link/admin/v1/agent/conversations/{sessionId}/messages")
+    @GetMapping("/api/xunzhi-agent/admin/v1/agent/conversations/{sessionId}/messages")
     public Result<List<AgentMessageHistoryRespDTO>> getConversationHistory(@PathVariable String sessionId) {
         return Results.success(agentMessageService.getConversationHistory(sessionId));
     }
@@ -63,7 +62,7 @@ public class AgentController {
     /**
      * 分页查询历史消息
      */
-    @GetMapping("/api/short-link/admin/v1/agent/messages/history")
+    @GetMapping("/api/xunzhi-agent/admin/v1/agent/messages/history")
     public Result<IPage<AgentMessageHistoryRespDTO>> pageHistoryMessages(
             @RequestHeader("username") String username,
             @RequestParam(required = false) String sessionId,
@@ -75,7 +74,7 @@ public class AgentController {
     /**
      * 结束会话
      */
-    @PutMapping("/api/short-link/admin/v1/agent/conversations/{sessionId}/end")
+    @PutMapping("/api/xunzhi-agent/admin/v1/agent/conversations/{sessionId}/end")
     public Result<Void> endConversation(@PathVariable String sessionId) {
         agentConversationService.endConversation(sessionId);
         return Results.success();

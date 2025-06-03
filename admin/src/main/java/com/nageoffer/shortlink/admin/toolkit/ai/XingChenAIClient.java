@@ -61,16 +61,36 @@ public class XingChenAIClient {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = br.readLine()) != null) {
-                    callback.accept(line);
-
-                    // 打印到控制台
-                    System.out.println("[SSE 消息发送] " + line);
-
-                    // SSE 格式输出
-                    outputStream.write("data: ".getBytes(StandardCharsets.UTF_8));
-                    outputStream.write(line.getBytes(StandardCharsets.UTF_8));
-                    outputStream.write("\n\n".getBytes(StandardCharsets.UTF_8));
-                    outputStream.flush();
+                    // 过滤空行和无效数据
+                    if (line.trim().isEmpty()) {
+                        continue;
+                    }
+                    
+                    // 处理SSE格式数据和结束标记
+                    String processedLine = null;
+                    
+                    if (line.startsWith("data: ")) {
+                        // 提取SSE数据部分
+                        String dataContent = line.substring(6).trim();
+                        if (dataContent.startsWith("{") || dataContent.equals("[DONE]")) {
+                            processedLine = dataContent;
+                        }
+                    } else if (line.startsWith("{") || line.equals("[DONE]")) {
+                        // 直接的JSON数据或结束标记
+                        processedLine = line;
+                    }
+                    
+                    if (processedLine != null) {
+                        callback.accept(processedLine);
+                        // 打印到控制台
+                        System.out.println("[AI数据接收] " + processedLine);
+                        
+                        // 发送处理后的数据
+                        outputStream.write(processedLine.getBytes(StandardCharsets.UTF_8));
+                        outputStream.flush();
+                    } else {
+                        System.out.println("[数据过滤] 跳过无效行: " + line);
+                    }
                 }
             }
         } else {

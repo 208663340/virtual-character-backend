@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
  */
 @Data
 @Component
-@ConfigurationProperties(prefix = "short-link.flow-limit")
+@ConfigurationProperties(prefix = "xunzhi-agent.flow-limit")
 public class UserFlowRiskControlConfiguration {
 
     /**

@@ -21,7 +21,7 @@ public interface AgentMessageService extends IService<AgentMessage> {
     /**
      * SSE流式聊天
      */
-    SseEmitter chatWithSse(UserMessageReqDTO requestParam);
+    SseEmitter agentChatSse(UserMessageReqDTO requestParam);
     /**
      * 统一userId获取器
      */

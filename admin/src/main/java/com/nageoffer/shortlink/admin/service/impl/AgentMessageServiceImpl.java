@@ -180,7 +180,7 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
     }
 
     @Override
-    public SseEmitter chatWithSse(UserMessageReqDTO requestParam) {
+    public SseEmitter agentChatSse(UserMessageReqDTO requestParam) {
         SseEmitter emitter = new SseEmitter(18000L);
         String userName = requestParam.getUserName() == null ? "默认" : requestParam.getUserName();
         Long agentId = requestParam.getAgentId() == null ? 1345345L : requestParam.getAgentId();
@@ -261,7 +261,7 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
                 agentConversationService.updateConversation(sessionId, 2, null);
 
                 // 7. 发送完成信号
-                emitter.send(SseEmitter.event().name("end").data(""));
+                emitter.send(SseEmitter.event().name("end").data("[DONE]"));
                 emitter.complete();
 
             } catch (Exception e) {

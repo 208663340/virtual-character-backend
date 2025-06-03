@@ -2,7 +2,7 @@ server:
   port: 8002
 spring:
   application:
-    name: short-link-admin
+    name: xunzhi-agent-admin
   datasource:
     driver-class-name: org.apache.shardingsphere.driver.ShardingSphereDriver
     url: jdbc:shardingsphere:classpath:shardingsphere-config-${database.env:dev}.yaml
@@ -19,7 +19,7 @@ xunfei:
   api-secret: "your_api_secret"
   rta-api-key: "your_rta_key"
 
-short-link:
+xunzhi-agent:
   flow-limit:
     enable: true
     time-window: 1

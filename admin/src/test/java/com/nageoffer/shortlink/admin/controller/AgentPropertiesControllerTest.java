@@ -51,7 +51,7 @@ class AgentPropertiesControllerTest {
 
         doNothing().when(agentPropertiesService).create(any(AgentPropertiesReqDTO.class));
 
-        mockMvc.perform(post("/api/short-link/admin/agent-properties/create")
+        mockMvc.perform(post("/api/xunzhi-agent/admin/agent-properties/create")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(reqDTO)))
                 .andExpect(status().isOk())
@@ -64,7 +64,7 @@ class AgentPropertiesControllerTest {
 
         doNothing().when(agentPropertiesService).delete(id);
 
-        mockMvc.perform(delete("/api/short-link/admin/agent-properties/{id}", id))
+        mockMvc.perform(delete("/api/xunzhi-agent/admin/agent-properties/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
     }
@@ -77,7 +77,7 @@ class AgentPropertiesControllerTest {
 
         doNothing().when(agentPropertiesService).update(any(AgentPropertiesReqDTO.class));
 
-        mockMvc.perform(put("/api/short-link/admin/agent-properties")
+        mockMvc.perform(put("/api/xunzhi-agent/admin/agent-properties")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(reqDTO)))
                 .andExpect(status().isOk())
@@ -93,7 +93,7 @@ class AgentPropertiesControllerTest {
 
         when(agentPropertiesService.getByName(agentName)).thenReturn(respDTO);
 
-        mockMvc.perform(get("/api/short-link/admin/agent-properties/byName")
+        mockMvc.perform(get("/api/xunzhi-agent/admin/agent-properties/byName")
                 .param("name", agentName))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
@@ -118,7 +118,7 @@ class AgentPropertiesControllerTest {
 
         when(agentPropertiesService.getByPage(any(AgentPropertiesReqDTO.class))).thenReturn(pageInfo);
 
-        mockMvc.perform(get("/api/short-link/admin/agentProperties/page")
+        mockMvc.perform(get("/api/xunzhi-agent/admin/agentProperties/page")
                 .param("pageNum", "1")
                 .param("pageSize", "10"))
                 .andExpect(status().isOk())

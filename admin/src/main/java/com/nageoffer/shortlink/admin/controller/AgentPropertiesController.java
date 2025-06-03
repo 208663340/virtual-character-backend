@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/short-link/admin/agentProperties")
+@RequestMapping("/api/xunzhi-agent/admin/agentProperties")
 public class AgentPropertiesController {
 
     private final AgentPropertiesService agentPropertiesService;
