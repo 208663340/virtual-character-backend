@@ -1,4 +1,4 @@
-package com.nageoffer.shortlink.admin.config;
+package com.nageoffer.shortlink.admin.config.xunfei;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;

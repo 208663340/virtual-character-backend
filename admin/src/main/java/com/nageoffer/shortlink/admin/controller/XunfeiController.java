@@ -1,10 +1,9 @@
 package com.nageoffer.shortlink.admin.controller;
 
-import com.nageoffer.shortlink.admin.service.XunfeiAudioService;
-import com.nageoffer.shortlink.admin.service.XunfeiFaceService;
+import com.nageoffer.shortlink.admin.service.tool.XunfeiAudioService;
+import com.nageoffer.shortlink.admin.service.tool.XunfeiFaceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;

@@ -15,32 +15,32 @@
  * limitations under the License.
  */
 
-package com.nageoffer.shortlink.admin.config;
+package com.nageoffer.shortlink.admin.config.database;
 
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
+import org.apache.ibatis.reflection.MetaObject;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
+import java.util.Date;
+
 /**
- * 用户操作流量风控配置文件
+ * MyBatis-Plus 原数据自动填充类
+ 
  */
-@Data
-@Component
-@ConfigurationProperties(prefix = "xunzhi-agent.flow-limit")
-public class UserFlowRiskControlConfiguration {
+@Primary
+@Component(value = "myMetaObjectHandlerByAdmin")
+public class MyMetaObjectHandler implements MetaObjectHandler {
 
-    /**
-     * 是否开启用户流量风控验证
-     */
-    private Boolean enable;
+    @Override
+    public void insertFill(MetaObject metaObject) {
+        strictInsertFill(metaObject, "createTime", Date::new, Date.class);
+        strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
+        strictInsertFill(metaObject, "delFlag", () -> 0, Integer.class);
+    }
 
-    /**
-     * 流量风控时间窗口，单位：秒
-     */
-    private String timeWindow;
-
-    /**
-     * 流量风控时间窗口内可访问次数
-     */
-    private Long maxAccessCount;
+    @Override
+    public void updateFill(MetaObject metaObject) {
+        strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
+    }
 }

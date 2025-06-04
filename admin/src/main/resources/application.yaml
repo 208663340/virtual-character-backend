@@ -10,10 +10,20 @@ spring:
     redis:
       host: 127.0.0.1
       port: 6379
+  # Spring配置
+  # 定时任务配置
+  task:
+    scheduling:
+      pool:
+        size: 2
+      thread-name-prefix: redis-session-task-
+    execution:
+      pool:
+        core-size: 4
+        max-size: 8
+        queue-capacity: 100
+        thread-name-prefix: redis-session-async-
 xunfei:
-  appsecret: OGZkZGQ5ZDY0Yzc4MTllZWI3ZmU2MDU4
-  appkey: e8565c438f59b301616e0498a86ad95d
-  appflow: 7332665061114077184
   app-id: "your_app_id"
   api-key: "your_api_key"
   api-secret: "your_api_secret"
@@ -24,3 +34,16 @@ xunzhi-agent:
     enable: true
     time-window: 1
     max-access-count: 20
+  redis-session:
+      # 是否启用Redis会话缓存
+    enable: true
+      # 会话消息缓存过期时间（秒），默认7天
+    message-expire-seconds: 604800
+      # 异步同步到数据库的延迟时间（秒），默认30秒
+    sync-delay-seconds: 30
+      # 批量同步的最大消息数量
+    batch-sync-size: 100
+      # 同步队列的最大长度
+    max-queue-size: 10000
+      # 清理任务的执行间隔（秒），默认5分钟
+    clean-interval-seconds: 300

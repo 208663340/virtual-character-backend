@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.nageoffer.shortlink.admin.config;
+package com.nageoffer.shortlink.admin.config.user;
 
 import com.nageoffer.shortlink.admin.common.biz.user.UserFlowRiskControlFilter;
 import com.nageoffer.shortlink.admin.common.biz.user.UserTransmitFilter;

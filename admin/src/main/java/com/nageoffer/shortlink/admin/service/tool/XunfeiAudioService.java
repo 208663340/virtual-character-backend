@@ -1,4 +1,4 @@
-package com.nageoffer.shortlink.admin.service;
+package com.nageoffer.shortlink.admin.service.tool;
 
 import cn.xfyun.api.IatClient;
 import cn.xfyun.api.RtasrClient;
@@ -9,11 +9,7 @@ import cn.xfyun.model.response.rtasr.RtasrResponse;
 import cn.xfyun.service.iat.AbstractIatWebSocketListener;
 import cn.xfyun.service.rta.AbstractRtasrWebSocketListener;
 import com.alibaba.fastjson2.JSONObject;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.nageoffer.shortlink.admin.config.XunfeiPropertiesConfig;
+import com.nageoffer.shortlink.admin.config.xunfei.XunfeiPropertiesConfig;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 import okhttp3.WebSocket;
@@ -24,10 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.annotation.PostConstruct;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.security.SignatureException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

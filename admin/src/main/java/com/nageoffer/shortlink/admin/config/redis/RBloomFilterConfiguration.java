@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.nageoffer.shortlink.admin.config;
+package com.nageoffer.shortlink.admin.config.redis;
 
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RedissonClient;

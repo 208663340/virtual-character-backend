@@ -1,4 +1,4 @@
-package com.nageoffer.shortlink.admin.config;
+package com.nageoffer.shortlink.admin.config.thread;
 
 import com.nageoffer.shortlink.admin.toolkit.Threads;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;

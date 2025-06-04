@@ -8,25 +8,18 @@ import javax.net.ssl.HttpsURLConnection;
 import java.io.*;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.function.Consumer;
 
 @Component
 public class XingChenAIClient {
 
-    @Value("${xunfei.appkey}")
-    private String apiKey;
 
-    @Value("${xunfei.appsecret}")
-    private String apiSecret;
+//    public void chat(String input, boolean stream, OutputStream outputStream, Consumer<String> callback) throws Exception {
+//        chat(input, stream, outputStream, callback, apiKey, apiSecret, flowId);
+//    }
 
-    @Value("${xunfei.appflow}")
-    private String flowId;
-
-    public void chat(String input, boolean stream, OutputStream outputStream, Consumer<String> callback) throws Exception {
-        chat(input, stream, outputStream, callback, apiKey, apiSecret, flowId);
-    }
-
-    public void chat(String input, boolean stream, OutputStream outputStream, Consumer<String> callback, 
+    public void chat(String input, String history, boolean stream, OutputStream outputStream, Consumer<String> callback,
                      String customApiKey, String customApiSecret, String customFlowId) throws Exception {
         String urlString = "https://xingchen-api.xf-yun.com/workflow/v1/chat/completions";
         URL url = new URL(urlString);
@@ -48,7 +41,8 @@ public class XingChenAIClient {
             "uid": "123",
             "parameters": {"AGENT_USER_INPUT": "%s"},
             "ext": {"bot_id": "adjfidjf", "caller": "workflow"},
-            "stream": %b
+            "stream": %b,
+            "history": %s
         }
         """, customFlowId, input, stream);
 

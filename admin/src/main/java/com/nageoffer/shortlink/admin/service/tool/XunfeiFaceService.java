@@ -1,10 +1,10 @@
-package com.nageoffer.shortlink.admin.service;
+package com.nageoffer.shortlink.admin.service.tool;
 
 import cn.xfyun.api.FaceStatusClient;
 import cn.xfyun.api.FaceCompareClient;
 import cn.xfyun.api.TupApiClient;
 import cn.xfyun.config.TupApiEnum;
-import com.nageoffer.shortlink.admin.config.XunfeiPropertiesConfig;
+import com.nageoffer.shortlink.admin.config.xunfei.XunfeiPropertiesConfig;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -14,8 +14,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
-
-import static org.bouncycastle.asn1.x500.style.BCStyle.GENDER;
 
 /**
  * 讯飞人脸识别服务
