@@ -192,9 +192,6 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
                     currentSessionId = existingSessionId;
                     List<AgentMessageHistoryRespDTO> historyMessages = getConversationHistory(currentSessionId);
                     // 将 historyMessages 转换为 XingChenAIClient 需要的 JSON 格式
-                    // 注意：这里需要一个将 List<AgentMessageHistoryRespDTO> 转换为特定JSON字符串的方法
-                    // 例如：historyJson = convertHistoryToJson(historyMessages);
-                    // 暂时用一个占位符，您需要实现具体的转换逻辑
                     if (CollUtil.isNotEmpty(historyMessages)) {
                         historyJson = JSON.toJSONString(
                             historyMessages.stream().map(h -> {
@@ -210,8 +207,19 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
                 } else {
                     currentSessionId = agentConversationService.createConversation(userName, agentId, userMessage);
                     nextMessageSeq = 1;
+                    // 创建包含用户当前消息的历史记录列表
+                    java.util.List<java.util.HashMap<String, String>> historyList = new java.util.ArrayList<>();
+                    java.util.HashMap<String, String> userMessageMap = new java.util.HashMap<>();
+                    userMessageMap.put("role", "user");
+                    userMessageMap.put("content_type", "text");
+                    userMessageMap.put("content", userMessage);
+                    historyList.add(userMessageMap);
+                    historyJson = JSON.toJSONString(historyList);
                 }
                 sessionId = currentSessionId; // 确保后续错误处理能获取到sessionId
+
+                // 首先发送sessionId给前端
+                emitter.send(SseEmitter.event().name("sessionId").data(currentSessionId));
 
                 // 2. 保存用户消息到Redis缓存
                 AgentMessage userMsg = new AgentMessage();
@@ -234,6 +242,7 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
                 // 4. 调用AI接口进行流式传输
                 xingChenAIClient.chat(
                         userMessage,
+                        currentSessionId,
                         historyJson,    // 传递 history
                         true,
                         new OutputStream() {
@@ -281,8 +290,6 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
 
                 // 7. 发送完成信号
                 emitter.send(SseEmitter.event().name("end").data("[DONE]"));
-                // 显式发送一个名为end的事件，不携带额外数据，作为流结束的明确信号
-                emitter.send(SseEmitter.event().name("end")); 
                 emitter.complete();
 
             } catch (Exception e) {
