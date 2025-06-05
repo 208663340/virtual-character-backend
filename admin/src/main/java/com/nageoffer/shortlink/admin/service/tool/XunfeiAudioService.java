@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 import okhttp3.WebSocket;
 
+import org.apache.commons.codec.binary.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -67,7 +68,7 @@ public class XunfeiAudioService {
      * @param audioFile 音频文件
      * @return 转换结果
      */
-    public CompletableFuture<String> audioToText(MultipartFile audioFile) {
+    public CompletableFuture<String> convertAudioToText(MultipartFile audioFile) {
         CompletableFuture<String> future = new CompletableFuture<>();
         CountDownLatch latch = new CountDownLatch(1);
         List<Text> resultSegments = new ArrayList<>();
@@ -75,6 +76,7 @@ public class XunfeiAudioService {
         AbstractIatWebSocketListener listener = new AbstractIatWebSocketListener() {
             @Override
             public void onSuccess(WebSocket webSocket, IatResponse iatResponse) {
+                 //处理错误
                 if (iatResponse.getCode() != 0) {
                     log.warn("语音听写错误：code={}, message={}, sid={}", 
                             iatResponse.getCode(), iatResponse.getMessage(), iatResponse.getSid());
@@ -132,58 +134,38 @@ public class XunfeiAudioService {
     }
 
     /**
-     * 处理识别结果文本
+     * 处理返回结果（包括全量返回与流式返回（结果修正））
      */
-    private void handleResultText(Text textObject, List<Text> resultSegments) {
-//        if (textObject.getWs() != null) {
-//            // 查找是否已存在相同索引的结果
-//            boolean found = false;
-//            for (int i = 0; i < resultSegments.size(); i++) {
-//                Text existingText = resultSegments.get(i);
-//                if (existingText.getSn() != null && existingText.getSn().equals(textObject.getSn())) {
-//                    // 更新已存在的结果
-//                    resultSegments.set(i, textObject);
-//                    found = true;
-//                    break;
-//                }
-//            }
-//
-//            if (!found) {
-//                // 添加新的结果
-//                resultSegments.add(textObject);
-//            }
-//        }
+    private static void handleResultText(Text textObject,List<Text> resultSegments) {
+        // 处理流式返回的替换结果
+        if (StringUtils.equals(textObject.getPgs(), "rpl") && textObject.getRg() != null && textObject.getRg().length == 2) {
+            // 返回结果序号sn字段的最小值为1
+            int start = textObject.getRg()[0] - 1;
+            int end = textObject.getRg()[1] - 1;
+
+            // 将指定区间的结果设置为删除状态
+            for (int i = start; i <= end && i < resultSegments.size(); i++) {
+                resultSegments.get(i).setDeleted(true);
+            }
+            // logger.info("替换操作，服务端返回结果为：" + textObject);
+        }
+
+        // 通用逻辑，添加当前文本到结果列表
+        resultSegments.add(textObject);
     }
 
     /**
-     * 获取最终识别结果
+     * 获取最终结果
      */
-    private String getFinalResult(List<Text> resultSegments) {
+    private static String getFinalResult(List<Text> resultSegments) {
         StringBuilder finalResult = new StringBuilder();
-        
-//        // 按照序号排序
-//        resultSegments.sort((a, b) -> {
-//            if (a.getSn() != null) {
-//                b.getSn();
-//            }
-//            return Integer.compare(a.getSn(), b.getSn());
-//        });
-//
-//        for (Text text : resultSegments) {
-//            if (text.getWs() != null) {
-//                for (Text.Ws ws : text.getWs()) {
-//                    if (ws.getCw() != null) {
-//                        for (Text.Cw cw : ws.getCw()) {
-//                            finalResult.append(cw.getW());
-//                        }
-//                    }
-//                }
-//            }
-//        }
-        
+        for (Text text : resultSegments) {
+            if (text != null && !text.isDeleted()) {
+                finalResult.append(text.getText());
+            }
+        }
         return finalResult.toString();
     }
-
 
 
     /**
@@ -204,12 +186,16 @@ public class XunfeiAudioService {
                     RtasrResponse response = JSONObject.parseObject(text, RtasrResponse.class);
                     String tempResult = handleAndReturnContent(response.getData());
                     
-                    // 实时回调
-                    if (callback != null) {
-                        callback.onResult(finalResult + tempResult);
+                    if (tempResult != null && !tempResult.isEmpty()) {
+                        finalResult.append(tempResult);
+                        
+                        // 实时回调
+                        if (callback != null) {
+                            callback.onResult(finalResult.toString());
+                        }
+                        
+                        log.info("实时转写结果：{}", finalResult.toString());
                     }
-                    
-                    log.info("实时转写结果：{}", finalResult + tempResult);
                 } catch (Exception e) {
                     log.error("解析实时转写结果失败", e);
                 }
@@ -217,7 +203,9 @@ public class XunfeiAudioService {
 
             @Override
             public void onFail(WebSocket webSocket, Throwable t, @Nullable Response response) {
-
+                log.error("实时转写失败", t);
+                future.completeExceptionally(new RuntimeException("实时转写失败", t));
+                latch.countDown();
             }
 
             @Override
