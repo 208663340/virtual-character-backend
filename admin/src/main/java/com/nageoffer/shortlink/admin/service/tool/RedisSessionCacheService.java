@@ -6,7 +6,7 @@ import com.alibaba.fastjson2.JSON;
 import com.nageoffer.shortlink.admin.common.constant.RedisCacheConstant;
 import com.nageoffer.shortlink.admin.config.redis.RedisSessionProperties;
 import com.nageoffer.shortlink.admin.dao.entity.AgentMessage;
-import com.nageoffer.shortlink.admin.dao.mapper.AgentMessageMapper;
+import com.nageoffer.shortlink.admin.dao.repository.AgentMessageRepository;
 import com.nageoffer.shortlink.admin.dto.resp.agent.AgentMessageHistoryRespDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 public class RedisSessionCacheService {
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final AgentMessageMapper agentMessageMapper;
+    private final AgentMessageRepository agentMessageRepository;
     private final RedisSessionProperties redisSessionProperties;
 
     /**
@@ -102,12 +102,8 @@ public class RedisSessionCacheService {
     private List<AgentMessageHistoryRespDTO> loadMessagesFromDatabase(String sessionId) {
         try {
             // 从数据库查询消息
-            List<AgentMessage> messages = agentMessageMapper.selectList(
-                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AgentMessage>()
-                            .eq(AgentMessage::getSessionId, sessionId)
-                            .eq(AgentMessage::getDelFlag, 0)
-                            .orderByAsc(AgentMessage::getMessageSeq)
-            );
+            List<AgentMessage> messages = agentMessageRepository
+                    .findBySessionIdAndDelFlagOrderByMessageSeqAsc(sessionId, 0);
             
             if (CollUtil.isNotEmpty(messages)) {
                 // 缓存到Redis
@@ -178,12 +174,11 @@ public class RedisSessionCacheService {
             }
             
             // 获取数据库中已存在的消息序号
-            Set<Integer> existingSeqs = agentMessageMapper.selectList(
-                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AgentMessage>()
-                            .eq(AgentMessage::getSessionId, sessionId)
-                            .eq(AgentMessage::getDelFlag, 0)
-                            .select(AgentMessage::getMessageSeq)
-            ).stream().map(AgentMessage::getMessageSeq).collect(Collectors.toSet());
+            Set<Integer> existingSeqs = agentMessageRepository
+                    .findBySessionIdAndDelFlag(sessionId, 0)
+                    .stream()
+                    .map(AgentMessage::getMessageSeq)
+                    .collect(Collectors.toSet());
             
             // 过滤出需要插入的新消息
             List<AgentMessage> newMessages = messageJsonList.stream()
@@ -193,9 +188,7 @@ public class RedisSessionCacheService {
             
             if (CollUtil.isNotEmpty(newMessages)) {
                 // 批量插入新消息
-                for (AgentMessage message : newMessages) {
-                    agentMessageMapper.insert(message);
-                }
+                agentMessageRepository.saveAll(newMessages);
                 log.info("[异步同步] 同步完成: sessionId={}, 新增消息数={}", sessionId, newMessages.size());
             }
             
@@ -249,13 +242,9 @@ public class RedisSessionCacheService {
             }
             
             // 缓存中没有数据，从数据库查询
-            AgentMessage lastMessage = agentMessageMapper.selectOne(
-                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AgentMessage>()
-                            .eq(AgentMessage::getSessionId, sessionId)
-                            .eq(AgentMessage::getDelFlag, 0)
-                            .orderByDesc(AgentMessage::getMessageSeq)
-                            .last("LIMIT 1")
-            );
+            List<AgentMessage> messages = agentMessageRepository
+                    .findBySessionIdAndDelFlagOrderByMessageSeqDesc(sessionId, 0);
+            AgentMessage lastMessage = CollUtil.isNotEmpty(messages) ? messages.get(0) : null;
             
             return lastMessage != null ? lastMessage.getMessageSeq() + 1 : 1;
         } catch (Exception e) {

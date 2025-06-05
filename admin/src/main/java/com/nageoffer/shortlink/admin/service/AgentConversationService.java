@@ -5,16 +5,22 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.nageoffer.shortlink.admin.dao.entity.AgentConversation;
 import com.nageoffer.shortlink.admin.dto.req.agent.AgentConversationPageReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.agent.AgentConversationRespDTO;
+import com.nageoffer.shortlink.admin.dto.resp.agent.AgentSessionCreateRespDTO;
 
 /**
  * 智能体会话服务接口
  */
-public interface AgentConversationService extends IService<AgentConversation> {
+public interface AgentConversationService {
 
     /**
      * 创建新会话
      */
     String createConversation(String username, Long agentId, String firstMessage);
+
+    /**
+     * 创建新会话并生成标题
+     */
+    AgentSessionCreateRespDTO createConversationWithTitle(String username, Long agentId, String firstMessage);
 
     /**
      * 分页查询用户会话列表

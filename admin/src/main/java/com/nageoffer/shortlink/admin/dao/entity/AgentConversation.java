@@ -1,38 +1,43 @@
 package com.nageoffer.shortlink.admin.dao.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
 
 /**
  * 智能体会话表
- * @TableName agent_conversation
+ * @Document agent_conversation
  */
 @Data
-@TableName("agent_conversation")
+@Document(collection = "agent_conversation")
 public class AgentConversation {
     /**
      * ID
      */
-    @TableId(type = IdType.AUTO)
-    private Long id;
+    @Id
+    private String id;
 
     /**
      * 会话ID，UUID格式
      */
+    @Indexed(unique = true)
     private String sessionId;
 
     /**
      * 用户ID
      */
+    @Indexed
     private Long userId;
 
     /**
      * 智能体ID
      */
+    @Indexed
     private Long agentId;
 
     /**
@@ -58,11 +63,13 @@ public class AgentConversation {
     /**
      * 创建时间
      */
+    @CreatedDate
     private Date createTime;
 
     /**
-     * 最后更新时间
+     * 更新时间
      */
+    @LastModifiedDate
     private Date updateTime;
 
     /**

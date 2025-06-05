@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
 import com.nageoffer.shortlink.admin.common.convention.result.Results;
 import com.nageoffer.shortlink.admin.dto.req.agent.AgentConversationPageReqDTO;
+import com.nageoffer.shortlink.admin.dto.req.agent.AgentSessionCreateReqDTO;
 import com.nageoffer.shortlink.admin.dto.req.user.UserMessageReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.agent.AgentConversationRespDTO;
 import com.nageoffer.shortlink.admin.dto.resp.agent.AgentMessageHistoryRespDTO;
+import com.nageoffer.shortlink.admin.dto.resp.agent.AgentSessionCreateRespDTO;
 
 import com.nageoffer.shortlink.admin.service.AgentConversationService;
 import com.nageoffer.shortlink.admin.service.AgentMessageService;
@@ -31,12 +33,46 @@ public class AgentController {
 
 
     /**
-     * Agent文字聊天接口
-     * @param requestParam
-     * @return
+     * 创建Agent会话
+     * @param requestParam 会话创建请求参数
+     * @return 会话ID和标题
      */
-    @PostMapping("/api/xunzhi-agent/admin/v1/agent/chat")
-    public SseEmitter chat(@RequestBody UserMessageReqDTO requestParam) {
+    @PostMapping("/api/xunzhi-agent/admin/v1/agent/sessions")
+    public Result<AgentSessionCreateRespDTO> createSession(@RequestBody AgentSessionCreateReqDTO requestParam) {
+        AgentSessionCreateRespDTO result = agentConversationService.createConversationWithTitle(
+                requestParam.getUserName(), 
+                requestParam.getAgentId(), 
+                requestParam.getFirstMessage()
+        );
+        
+        return Results.success(result);
+    }
+
+    /**
+     * Agent文字聊天SSE接口
+     * @param sessionId 会话ID
+     * @param message 用户消息
+     * @param agentId 智能体ID
+     * @param messageSeq 消息序号
+     * @param username 用户名
+     * @return SSE流
+     */
+    @GetMapping("/api/xunzhi-agent/admin/v1/agent/chat")
+    public SseEmitter chat(
+            @RequestParam String sessionId,
+            @RequestParam String message,
+            @RequestParam Long agentId,
+            @RequestParam Integer messageSeq,
+            @RequestHeader("username") String username) {
+        
+        // 构建UserMessageReqDTO对象
+        UserMessageReqDTO requestParam = new UserMessageReqDTO();
+        requestParam.setSessionId(sessionId);
+        requestParam.setInputMessage(message);
+        requestParam.setAgentId(agentId);
+        requestParam.setMessageSeq(messageSeq);
+        requestParam.setUserName(username);
+        
         return agentMessageService.agentChatSse(requestParam);
     }
 
@@ -79,4 +115,6 @@ public class AgentController {
         agentConversationService.endConversation(sessionId);
         return Results.success();
     }
+
+
 }

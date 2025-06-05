@@ -18,8 +18,6 @@ import java.util.concurrent.CompletableFuture;
  * 提供音频转文字和人脸识别的REST API接口
  */
 @RestController
-@RequestMapping("/api/xunfei")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 @Slf4j
 public class XunfeiController {
@@ -33,7 +31,7 @@ public class XunfeiController {
      * @param audioFile 音频文件
      * @return 转换结果
      */
-    @PostMapping("/audio/convert")
+    @PostMapping("/api/xunzhi-agent/admin/v1/audio/convert")
     public CompletableFuture<ResponseEntity<Map<String, Object>>> convertAudioToText(
             @RequestParam("file") MultipartFile audioFile) {
         
@@ -67,7 +65,7 @@ public class XunfeiController {
      * @param audioFile 音频文件
      * @return 转换结果
      */
-    @PostMapping("/audio/realtime")
+    @PostMapping("/api/xunzhi-agent/admin/v1/audio/realtime")
     public CompletableFuture<ResponseEntity<Map<String, Object>>> realtimeAudioToText(
             @RequestParam("file") MultipartFile audioFile) {
         
@@ -100,15 +98,12 @@ public class XunfeiController {
     }
 
 
-
-
-
     /**
      * 人脸属性识别 - 表情
      * @param image 人脸图片
      * @return 表情识别结果
      */
-    @PostMapping("/face/expression")
+    @PostMapping("/api/xunzhi-agent/admin/v1/face/expression")
     public CompletableFuture<ResponseEntity<Map<String, Object>>> detectExpression(
             @RequestParam("image") MultipartFile image) {
         return detectSingleAttribute(image, "expression", () -> xunfeiFaceService.detectExpression(image));
@@ -184,15 +179,4 @@ public class XunfeiController {
         return ResponseEntity.badRequest().body(response);
     }
 
-    /**
-     * 健康检查接口
-     */
-    @GetMapping("/health")
-    public ResponseEntity<Map<String, Object>> health() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", "UP");
-        response.put("message", "讯飞AI服务运行正常");
-        response.put("timestamp", System.currentTimeMillis());
-        return ResponseEntity.ok(response);
-    }
 }

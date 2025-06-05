@@ -26,7 +26,7 @@ public class UserMessageReqDTO {
     private int messageSeq;
 
     /**
-     * 会话ID（可选，首次对话时为空，后续对话需要传入）
+     * 会话ID（
      */
     private String sessionId;
 }

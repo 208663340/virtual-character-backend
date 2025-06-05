@@ -2,25 +2,26 @@ package com.nageoffer.shortlink.admin.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.IdUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.shortlink.admin.common.convention.exception.ClientException;
 import com.nageoffer.shortlink.admin.dao.entity.AgentConversation;
-import com.nageoffer.shortlink.admin.dao.mapper.AgentConversationMapper;
+import com.nageoffer.shortlink.admin.dao.repository.AgentConversationRepository;
 import com.nageoffer.shortlink.admin.dto.req.agent.AgentConversationPageReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.agent.AgentConversationRespDTO;
+import com.nageoffer.shortlink.admin.dto.resp.agent.AgentSessionCreateRespDTO;
 import com.nageoffer.shortlink.admin.service.AgentConversationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.nageoffer.shortlink.admin.common.constant.RedisCacheConstant.USER_LOGIN_KEY;
 
@@ -29,9 +30,9 @@ import static com.nageoffer.shortlink.admin.common.constant.RedisCacheConstant.U
  */
 @Service
 @RequiredArgsConstructor
-public class AgentConversationServiceImpl extends ServiceImpl<AgentConversationMapper, AgentConversation>
-        implements AgentConversationService {
+public class AgentConversationServiceImpl implements AgentConversationService {
 
+    private final AgentConversationRepository agentConversationRepository;
     private final StringRedisTemplate stringRedisTemplate;
 
     @Override
@@ -51,45 +52,70 @@ public class AgentConversationServiceImpl extends ServiceImpl<AgentConversationM
         conversation.setStatus(1); // 进行中
         conversation.setDelFlag(0);
         
-        baseMapper.insert(conversation);
+        agentConversationRepository.save(conversation);
         return sessionId;
+    }
+
+    @Override
+    public AgentSessionCreateRespDTO createConversationWithTitle(String username, Long agentId, String firstMessage) {
+        String sessionId = createConversation(username, agentId, firstMessage);
+        String title = generateTitle(firstMessage);
+        return new AgentSessionCreateRespDTO(sessionId, title);
     }
 
     @Override
     public IPage<AgentConversationRespDTO> pageConversations(String username, AgentConversationPageReqDTO reqDTO) {
         // 通过用户名获取用户ID
         Long userId = getUserIdByUsername(username);
-        Page<AgentConversation> page = new Page<>(reqDTO.getCurrent(), reqDTO.getSize());
         
-        IPage<AgentConversation> conversationPage = baseMapper.selectConversationPage(
-                page, userId, reqDTO.getAgentId(), reqDTO.getStatus(), reqDTO.getKeyword());
+        Pageable pageable = PageRequest.of(reqDTO.getCurrent() - 1, reqDTO.getSize());
+        org.springframework.data.domain.Page<AgentConversation> conversationPage;
         
-        return conversationPage.convert(conversation -> {
-            AgentConversationRespDTO respDTO = new AgentConversationRespDTO();
-            BeanUtils.copyProperties(conversation, respDTO);
-            return respDTO;
-        });
+        if (reqDTO.getKeyword() != null && !reqDTO.getKeyword().trim().isEmpty()) {
+            // 有关键词搜索
+            conversationPage = agentConversationRepository
+                .findByUserIdAndAgentIdAndStatusAndDelFlagAndTitleContaining(
+                    userId, reqDTO.getAgentId(), reqDTO.getStatus(), 0, reqDTO.getKeyword(), pageable);
+        } else {
+            // 无关键词搜索
+            conversationPage = agentConversationRepository
+                .findByUserIdAndAgentIdAndStatusAndDelFlagOrderByUpdateTimeDesc(
+                    userId, reqDTO.getAgentId(), reqDTO.getStatus(), 0, pageable);
+        }
+        
+        // 转换为MyBatis-Plus的IPage格式以保持接口兼容性
+        Page<AgentConversationRespDTO> resultPage = new Page<>(reqDTO.getCurrent(), reqDTO.getSize());
+        resultPage.setTotal(conversationPage.getTotalElements());
+        resultPage.setRecords(
+            conversationPage.getContent().stream()
+                .map(conversation -> {
+                    AgentConversationRespDTO respDTO = new AgentConversationRespDTO();
+                    BeanUtils.copyProperties(conversation, respDTO);
+                    return respDTO;
+                })
+                .collect(Collectors.toList())
+        );
+        
+        return resultPage;
     }
 
     @Override
     public void updateConversation(String sessionId, Integer messageCount, Integer totalTokens) {
-        LambdaUpdateWrapper<AgentConversation> updateWrapper = new LambdaUpdateWrapper<AgentConversation>()
-                .eq(AgentConversation::getSessionId, sessionId)
-                .set(AgentConversation::getMessageCount, messageCount)
-                .set(AgentConversation::getTotalTokens, totalTokens)
-                .set(AgentConversation::getUpdateTime, new Date());
-        
-        baseMapper.update(null, updateWrapper);
+        agentConversationRepository.findBySessionIdAndDelFlag(sessionId, 0)
+            .ifPresent(conversation -> {
+                conversation.setMessageCount(messageCount);
+                conversation.setTotalTokens(totalTokens);
+                agentConversationRepository.save(conversation);
+            });
     }
 
     @Override
     public void endConversation(String sessionId) {
-        LambdaUpdateWrapper<AgentConversation> updateWrapper = new LambdaUpdateWrapper<AgentConversation>()
-                .eq(AgentConversation::getSessionId, sessionId)
-                .set(AgentConversation::getStatus, 2) // 已结束
-                .set(AgentConversation::getUpdateTime, new Date());
-        
-        baseMapper.update(null, updateWrapper);
+        agentConversationRepository.findBySessionIdAndDelFlag(sessionId, 0)
+            .ifPresent(conversation -> {
+                conversation.setStatus(2); // 已结束
+                agentConversationRepository.save(conversation);
+            });
     }
 
     /**

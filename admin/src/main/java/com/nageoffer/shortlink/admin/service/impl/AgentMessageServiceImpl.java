@@ -3,20 +3,18 @@ package com.nageoffer.shortlink.admin.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.shortlink.admin.common.convention.exception.ClientException;
 import com.nageoffer.shortlink.admin.dao.entity.AgentMessage;
 import com.nageoffer.shortlink.admin.dao.entity.AgentPropertiesDO;
+import com.nageoffer.shortlink.admin.dao.repository.AgentMessageRepository;
 import com.nageoffer.shortlink.admin.dto.req.user.UserMessageReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.agent.AgentMessageHistoryRespDTO;
 import com.nageoffer.shortlink.admin.dto.resp.agent.AgentMessageRespDTO;
 
 import com.nageoffer.shortlink.admin.service.AgentConversationService;
 import com.nageoffer.shortlink.admin.service.AgentMessageService;
-import com.nageoffer.shortlink.admin.dao.mapper.AgentMessageMapper;
 
 import com.nageoffer.shortlink.admin.service.tool.RedisSessionCacheService;
 import com.nageoffer.shortlink.admin.toolkit.ai.AIContentAccumulator;
@@ -26,12 +24,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +48,9 @@ import static com.nageoffer.shortlink.admin.common.constant.RedisCacheConstant.U
 */
 @Service
 @RequiredArgsConstructor
-@Slf4j
-public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, AgentMessage>
-    implements AgentMessageService{
+public class AgentMessageServiceImpl implements AgentMessageService{
 
+    private final AgentMessageRepository agentMessageRepository;
     private final StringRedisTemplate stringRedisTemplate;
     private final XingChenAIClient xingChenAIClient;
     private final AgentPropertiesLoader agentPropertiesLoader;
@@ -95,13 +95,28 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
         AgentMessage agentMessage = new AgentMessage();
         BeanUtils.copyProperties(agentMessageResp, agentMessage);
 
-        baseMapper.insert(agentMessage);
+        agentMessageRepository.save(agentMessage);
     }
 
     @Override
     public List<AgentMessageHistoryRespDTO> getConversationHistory(String sessionId) {
-        // 从Redis缓存中获取会话历史记录
-        return redisSessionCacheService.getMessagesFromCache(sessionId);
+        // 先尝试从Redis缓存中获取
+        List<AgentMessageHistoryRespDTO> cachedMessages = redisSessionCacheService.getMessagesFromCache(sessionId);
+        if (CollUtil.isNotEmpty(cachedMessages)) {
+            return cachedMessages;
+        }
+        
+        // 缓存中没有则从MongoDB查询
+        List<AgentMessage> messages = agentMessageRepository
+            .findBySessionIdAndDelFlagOrderByMessageSeqAsc(sessionId, 0);
+        
+        return messages.stream()
+            .map(message -> {
+                AgentMessageHistoryRespDTO dto = new AgentMessageHistoryRespDTO();
+                BeanUtils.copyProperties(message, dto);
+                return dto;
+            })
+            .collect(Collectors.toList());
     }
 
     @Override
@@ -109,23 +124,31 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
         // 通过用户名获取用户ID
         Long userId = getUserIdByUsername(username);
         
-        Page<AgentMessage> page = new Page<>(current, size);
-        
-        LambdaQueryWrapper<AgentMessage> queryWrapper = new LambdaQueryWrapper<AgentMessage>()
-                .eq(AgentMessage::getDelFlag, 0)
-                .orderByAsc(AgentMessage::getCreateTime);
+        Pageable pageable = PageRequest.of(current - 1, size);
+        org.springframework.data.domain.Page<AgentMessage> messagePage;
         
         if (StrUtil.isNotBlank(sessionId)) {
-            queryWrapper.eq(AgentMessage::getSessionId, sessionId);
+            messagePage = agentMessageRepository
+                .findBySessionIdAndDelFlagOrderByCreateTimeAsc(sessionId, 0, pageable);
+        } else {
+            messagePage = agentMessageRepository
+                .findByDelFlagOrderByCreateTimeDesc(0, pageable);
         }
         
-        IPage<AgentMessage> messagePage = baseMapper.selectPage(page, queryWrapper);
+        // 转换为MyBatis-Plus的IPage格式以保持接口兼容性
+        Page<AgentMessageHistoryRespDTO> resultPage = new Page<>(current, size);
+        resultPage.setTotal(messagePage.getTotalElements());
+        resultPage.setRecords(
+            messagePage.getContent().stream()
+                .map(message -> {
+                    AgentMessageHistoryRespDTO respDTO = new AgentMessageHistoryRespDTO();
+                    BeanUtils.copyProperties(message, respDTO);
+                    return respDTO;
+                })
+                .collect(Collectors.toList())
+        );
         
-        return messagePage.convert(message -> {
-            AgentMessageHistoryRespDTO respDTO = new AgentMessageHistoryRespDTO();
-            BeanUtils.copyProperties(message, respDTO);
-            return respDTO;
-        });
+        return resultPage;
     }
 
     /**
@@ -137,10 +160,9 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
         message.setMessageType(1); // 用户消息
         message.setMessageContent(userMessage);
         message.setMessageSeq(getNextMessageSeq(sessionId));
-        message.setCreateTime(new Date());
         message.setDelFlag(0);
         
-        baseMapper.insert(message);
+        agentMessageRepository.save(message);
     }
 
     /**
@@ -153,10 +175,9 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
         message.setMessageContent(aiMessage);
         message.setMessageSeq(getNextMessageSeq(sessionId));
         message.setResponseTime(responseTime);
-        message.setCreateTime(new Date());
         message.setDelFlag(0);
         
-        baseMapper.insert(message);
+        agentMessageRepository.save(message);
     }
 
     /**
@@ -168,8 +189,12 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
 
     @Override
     public SseEmitter agentChatSse(UserMessageReqDTO requestParam) {
-        // 从请求参数中获取 sessionId，如果不存在则为 null
-        String existingSessionId = requestParam.getSessionId();
+        // sessionId现在必须通过参数传入
+        String sessionId = requestParam.getSessionId();
+        if (StrUtil.isBlank(sessionId)) {
+            throw new IllegalArgumentException("sessionId不能为空");
+        }
+        
         SseEmitter emitter = new SseEmitter(18000L);
         String userName = requestParam.getUserName() == null ? "默认" : requestParam.getUserName();
         Long agentId = requestParam.getAgentId() == null ? 1345345L : requestParam.getAgentId();
@@ -179,58 +204,36 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
         AIContentAccumulator accumulator = new AIContentAccumulator();
         
         asyncTask.submit(() -> {
-            String sessionId = null;
             long startTime = System.currentTimeMillis();
             
             try {
-                // 1. 处理会话ID和历史消息
-                String currentSessionId;
-                String historyJson = null;
-                int nextMessageSeq;
-
-                if (StrUtil.isNotBlank(existingSessionId)) {
-                    currentSessionId = existingSessionId;
-                    List<AgentMessageHistoryRespDTO> historyMessages = getConversationHistory(currentSessionId);
-                    // 将 historyMessages 转换为 XingChenAIClient 需要的 JSON 格式
-                    if (CollUtil.isNotEmpty(historyMessages)) {
-                        historyJson = JSON.toJSONString(
-                            historyMessages.stream().map(h -> {
-                                java.util.HashMap<String, String> map = new java.util.HashMap<>();
-                                map.put("role", h.getMessageType() == 1 ? "user" : "assistant");
-                                map.put("content_type", "text");
-                                map.put("content", h.getMessageContent());
-                                return map;
-                            }).collect(Collectors.toList())
-                        );
-                    }
-                    nextMessageSeq = getNextMessageSeq(currentSessionId);
-                } else {
-                    currentSessionId = agentConversationService.createConversation(userName, agentId, userMessage);
-                    nextMessageSeq = 1;
-                    // 创建包含用户当前消息的历史记录列表
-                    java.util.List<java.util.HashMap<String, String>> historyList = new java.util.ArrayList<>();
-                    java.util.HashMap<String, String> userMessageMap = new java.util.HashMap<>();
-                    userMessageMap.put("role", "user");
-                    userMessageMap.put("content_type", "text");
-                    userMessageMap.put("content", userMessage);
-                    historyList.add(userMessageMap);
-                    historyJson = JSON.toJSONString(historyList);
+                // 1. 处理历史消息
+                List<AgentMessageHistoryRespDTO> historyMessages = getConversationHistory(sessionId);
+                // 将 historyMessages 转换为 XingChenAIClient 需要的 JSON 格式
+                List<java.util.HashMap<String, String>> historyList = new ArrayList<>();
+                if (CollUtil.isNotEmpty(historyMessages)) {
+                    historyList = historyMessages.stream().map(h -> {
+                        java.util.HashMap<String, String> map = new java.util.HashMap<>();
+                        map.put("role", h.getMessageType() == 1 ? "user" : "assistant");
+                        map.put("content_type", "text");
+                        map.put("content", h.getMessageContent());
+                        return map;
+                    }).collect(Collectors.toList());
                 }
-                sessionId = currentSessionId; // 确保后续错误处理能获取到sessionId
-
-                // 首先发送sessionId给前端
-                emitter.send(SseEmitter.event().name("sessionId").data(currentSessionId));
+                // 统一转换为JSON字符串，确保不为null
+                String historyJson = JSON.toJSONString(historyList);
+                int nextMessageSeq = getNextMessageSeq(sessionId);
 
                 // 2. 保存用户消息到Redis缓存
                 AgentMessage userMsg = new AgentMessage();
-                userMsg.setSessionId(currentSessionId);
+                userMsg.setSessionId(sessionId);
                 userMsg.setMessageType(1); // 用户消息
                 userMsg.setMessageContent(userMessage);
                 userMsg.setMessageSeq(nextMessageSeq);
                 userMsg.setCreateTime(new Date());
                 userMsg.setDelFlag(0);
                 // 添加到Redis缓存，会自动异步同步到数据库
-                redisSessionCacheService.addMessageToCache(currentSessionId, userMsg);
+                redisSessionCacheService.addMessageToCache(sessionId, userMsg);
                 
                 // 3. 根据智能体ID获取对应的配置
                 AgentPropertiesDO agentProperties = agentPropertiesLoader.getAgentPropertiesMap().get(agentId);
@@ -242,7 +245,7 @@ public class AgentMessageServiceImpl extends ServiceImpl<AgentMessageMapper, Age
                 // 4. 调用AI接口进行流式传输
                 xingChenAIClient.chat(
                         userMessage,
-                        currentSessionId,
+                        sessionId,
                         historyJson,    // 传递 history
                         true,
                         new OutputStream() {

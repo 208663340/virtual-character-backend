@@ -16,7 +16,7 @@ import java.util.List;
 * @description 针对表【agent_message_0】的数据库操作Service
 * @createDate 2025-05-27 13:33:37
 */
-public interface AgentMessageService extends IService<AgentMessage> {
+public interface AgentMessageService  {
 
     /**
      * SSE流式聊天

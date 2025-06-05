@@ -1,28 +1,31 @@
 package com.nageoffer.shortlink.admin.dao.entity;
 
+import lombok.Data;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.util.Date;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Data;
-
 /**
- * 智能体消息详情表
- * @TableName agent_message_0
+ * 智能体消息表
+ * @Document agent_message
  */
 @Data
-@TableName("agent_message")
+@Document(collection = "agent_message")
 public class AgentMessage{
     /**
      * ID
      */
-    @TableId(type = IdType.AUTO)
-    private Long id;
+    @Id
+    private String id;
 
     /**
      * 会话ID
      */
+    @Indexed
     private String sessionId;
 
     /**
@@ -63,7 +66,14 @@ public class AgentMessage{
     /**
      * 创建时间
      */
+    @CreatedDate
     private Date createTime;
+
+    /**
+     * 更新时间
+     */
+    @LastModifiedDate
+    private Date updateTime;
 
     /**
      * 删除标识 0：未删除 1：已删除

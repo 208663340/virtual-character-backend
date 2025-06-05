@@ -7,6 +7,13 @@ spring:
     driver-class-name: org.apache.shardingsphere.driver.ShardingSphereDriver
     url: jdbc:shardingsphere:classpath:shardingsphere-config-${database.env:dev}.yaml
   data:
+    mongodb:
+      host: 127.0.0.1
+      port: 27017
+      database: xunzhi_agent
+      # 如果需要认证，可以配置用户名和密码
+      # username: your_username
+      # password: your_password
     redis:
       host: 127.0.0.1
       port: 6379
