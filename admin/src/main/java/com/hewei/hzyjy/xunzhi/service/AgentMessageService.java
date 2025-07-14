@@ -1,6 +1,7 @@
 package com.hewei.hzyjy.xunzhi.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.hewei.hzyjy.xunzhi.dto.req.agent.InterviewQuestionReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserMessageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentMessageHistoryRespDTO;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -28,6 +29,11 @@ public interface AgentMessageService  {
      * 分页查询历史消息
      */
     IPage<AgentMessageHistoryRespDTO> pageHistoryMessages(String username, String sessionId, Integer current, Integer size);
+
+    /**
+     * 面试题抽取SSE流式接口
+     */
+    SseEmitter extractInterviewQuestions(InterviewQuestionReqDTO requestParam);
 
 
 }

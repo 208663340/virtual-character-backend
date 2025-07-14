@@ -7,17 +7,17 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hewei.hzyjy.xunzhi.common.convention.exception.ClientException;
 import com.hewei.hzyjy.xunzhi.dao.entity.AiMessage;
-import com.hewei.hzyjy.xunzhi.dao.entity.AgentMessage; // 新增导入
+// 移除AgentMessage导入，不再需要
 import com.hewei.hzyjy.xunzhi.dao.entity.AiPropertiesDO;
 import com.hewei.hzyjy.xunzhi.dao.repository.AiMessageRepository;
 import com.hewei.hzyjy.xunzhi.dto.req.ai.AiMessageReqDTO;
-import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentMessageHistoryRespDTO;
+// 移除AgentMessageHistoryRespDTO导入，不再需要
 import com.hewei.hzyjy.xunzhi.dto.resp.ai.AiMessageHistoryRespDTO;
 import com.hewei.hzyjy.xunzhi.service.AiConversationService;
 import com.hewei.hzyjy.xunzhi.service.AiMessageService;
 import com.hewei.hzyjy.xunzhi.service.AiPropertiesService;
 import com.hewei.hzyjy.xunzhi.service.UserService;
-import com.hewei.hzyjy.xunzhi.service.tool.AiSessionCacheService;
+// 移除Redis缓存服务导入
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AIContentAccumulator;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.RoleContent;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.SparkAIClient;
@@ -51,7 +51,7 @@ public class AiMessageServiceImpl implements AiMessageService {
     private final AiMessageRepository aiMessageRepository;
     private final AiPropertiesService aiPropertiesService;
     private final AiConversationService aiConversationService;
-    private final AiSessionCacheService aiSessionCacheService;
+    // 移除Redis缓存服务注入
     private final UserService userService;
     private final SparkAIClient sparkAIClient;
     private final StringRedisTemplate stringRedisTemplate;
@@ -96,7 +96,7 @@ public class AiMessageServiceImpl implements AiMessageService {
 
                 int nextMessageSeq = getNextMessageSeq(sessionId);
                 
-                // 3. 保存用户消息
+                // 3. 保存用户消息到数据库
                 AiMessage userMsg = new AiMessage();
                 userMsg.setSessionId(sessionId);
                 userMsg.setMessageType(1); // 用户消息
@@ -104,11 +104,8 @@ public class AiMessageServiceImpl implements AiMessageService {
                 userMsg.setMessageSeq(nextMessageSeq);
                 userMsg.setCreateTime(new Date());
                 userMsg.setDelFlag(0);
-                //从agent转化为ai后，添加到Redis缓存，会自动异步同步到数据库
-                AgentMessage agentUserMsg = new AgentMessage();
-                BeanUtils.copyProperties(userMsg, agentUserMsg);
-                aiSessionCacheService.addMessageToCache(sessionId, agentUserMsg);
-//                aiMessageRepository.save(userMsg);
+                // 直接保存到数据库
+                aiMessageRepository.save(userMsg);
                 
                 // 4. 调用AI接口进行流式传输
                 String aiResponse = "";
@@ -210,19 +207,7 @@ public class AiMessageServiceImpl implements AiMessageService {
     
     @Override
     public List<AiMessageHistoryRespDTO> getConversationHistory(String sessionId) {
-        // 先尝试从Redis缓存中获取，并从agent转化为ai消息
-        List<AgentMessageHistoryRespDTO> cachedMessages = aiSessionCacheService.getMessagesFromCache(sessionId);
-
-        //不为空则转化为ai消息
-        if (CollUtil.isNotEmpty(cachedMessages)) {
-            return cachedMessages.stream().map(message -> {
-                AiMessageHistoryRespDTO dto = new AiMessageHistoryRespDTO();
-                BeanUtils.copyProperties(message, dto);
-                return dto;
-            }).collect(Collectors.toList());
-        }
-        
-        // 缓存中没有则从MongoDB查询
+        // 直接从数据库查询历史消息
         List<AiMessage> messages = aiMessageRepository
                 .findBySessionIdAndDelFlagOrderByMessageSeqAsc(sessionId, 0);
         

@@ -38,18 +38,7 @@ public class RedisCacheConstant {
      */
     public static final String USER_LOGIN_KEY = "xunzhi-agent:login:";
 
-    /**
-     * 会话消息缓存标识
-     */
-    public static final String SESSION_MESSAGES_KEY = "xunzhi-agent:session:messages:";
+    // 移除会话缓存相关常量，不再使用Redis延时队列
 
-    /**
-     * 会话同步队列标识
-     */
-    public static final String SESSION_SYNC_QUEUE_KEY = "xunzhi-agent:session:sync:queue";
-
-    /**
-     * 会话最后同步时间标识
-     */
-    public static final String SESSION_LAST_SYNC_KEY = "xunzhi-agent:session:last-sync:";
+    // 移除会话最后同步时间Key，不再使用
 }

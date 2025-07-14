@@ -6,6 +6,7 @@ import com.hewei.hzyjy.xunzhi.common.util.FileUploadUtil;
 import com.hewei.hzyjy.xunzhi.dto.resp.file.FileUploadResult;
 import com.hewei.hzyjy.xunzhi.dto.resp.xunfei.ExpressionRecognitionResult;
 import com.hewei.hzyjy.xunzhi.service.AudioTranscriptionService;
+import com.hewei.hzyjy.xunzhi.toolkit.xunfei.XingChenAIClient;
 import com.hewei.hzyjy.xunzhi.service.tool.XunfeiAudioService;
 import com.hewei.hzyjy.xunzhi.service.tool.XunfeiFaceService;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,8 @@ public class XunfeiController {
     private final XunfeiFaceService xunfeiFaceService;
     
     private final AudioTranscriptionService audioTranscriptionService;
+    
+    private final XingChenAIClient xingChenAIClient;
 
     /**
      * 实时音频文件转文字

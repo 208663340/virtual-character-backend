@@ -9,29 +9,31 @@ import com.hewei.hzyjy.xunzhi.common.convention.exception.ClientException;
 import com.hewei.hzyjy.xunzhi.dao.entity.AgentMessage;
 import com.hewei.hzyjy.xunzhi.dao.entity.AgentPropertiesDO;
 import com.hewei.hzyjy.xunzhi.dao.repository.AgentMessageRepository;
+
+import com.hewei.hzyjy.xunzhi.dto.req.agent.InterviewQuestionReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserMessageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentMessageHistoryRespDTO;
+import com.hewei.hzyjy.xunzhi.toolkit.xunfei.XingChenAIClient;
 
 import com.hewei.hzyjy.xunzhi.service.AgentConversationService;
 import com.hewei.hzyjy.xunzhi.service.AgentMessageService;
-import com.hewei.hzyjy.xunzhi.service.UserService;
-import com.hewei.hzyjy.xunzhi.service.tool.AiSessionCacheService;
+import com.hewei.hzyjy.xunzhi.service.InterviewQuestionService;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AIContentAccumulator;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AgentPropertiesLoader;
-import com.hewei.hzyjy.xunzhi.toolkit.xunfei.XingChenAIClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 /**
 * @author 20866
@@ -40,28 +42,21 @@ import java.util.stream.Collectors;
 */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AgentMessageServiceImpl implements AgentMessageService{
 
     private final AgentMessageRepository agentMessageRepository;
-    private final StringRedisTemplate stringRedisTemplate;
     private final XingChenAIClient xingChenAIClient;
     private final AgentPropertiesLoader agentPropertiesLoader;
     private final AgentConversationService agentConversationService;
-    private final AiSessionCacheService aiSessionCacheService;
-    private final UserService userService;
+    private final InterviewQuestionService interviewQuestionService;
     private final SimpleAsyncTaskExecutor asyncTask = new SimpleAsyncTaskExecutor();
 
 
 
     @Override
     public List<AgentMessageHistoryRespDTO> getConversationHistory(String sessionId) {
-        // 先尝试从Redis缓存中获取
-        List<AgentMessageHistoryRespDTO> cachedMessages = aiSessionCacheService.getMessagesFromCache(sessionId);
-        if (CollUtil.isNotEmpty(cachedMessages)) {
-            return cachedMessages;
-        }
-        
-        // 缓存中没有则从MongoDB查询
+        // 直接从数据库查询历史消息
         List<AgentMessage> messages = agentMessageRepository
             .findBySessionIdAndDelFlagOrderByMessageSeqAsc(sessionId, 0);
         
@@ -108,7 +103,12 @@ public class AgentMessageServiceImpl implements AgentMessageService{
      * 获取下一个消息序号
      */
     private Integer getNextMessageSeq(String sessionId) {
-        return aiSessionCacheService.getNextMessageSeq(sessionId);
+        AgentMessage lastMessage = agentMessageRepository
+            .findTopBySessionIdAndDelFlagOrderByMessageSeqDesc(sessionId, 0);
+        if (lastMessage == null) {
+            return 1;
+        }
+        return lastMessage.getMessageSeq() + 1;
     }
 
     @Override
@@ -148,7 +148,7 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                 String historyJson = JSON.toJSONString(historyList);
                 int nextMessageSeq = getNextMessageSeq(sessionId);
 
-                // 2. 保存用户消息到Redis缓存
+                // 2. 保存用户消息到数据库
                 AgentMessage userMsg = new AgentMessage();
                 userMsg.setSessionId(sessionId);
                 userMsg.setMessageType(1); // 用户消息
@@ -156,8 +156,8 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                 userMsg.setMessageSeq(nextMessageSeq);
                 userMsg.setCreateTime(new Date());
                 userMsg.setDelFlag(0);
-                // 添加到Redis缓存，会自动异步同步到数据库
-                aiSessionCacheService.addMessageToCache(sessionId, userMsg);
+                // 直接保存到数据库
+                agentMessageRepository.save(userMsg);
                 
                 // 3. 根据智能体ID获取对应的配置
                 AgentPropertiesDO agentProperties = agentPropertiesLoader.getAgentPropertiesMap().get(agentId);
@@ -195,12 +195,12 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                         agentProperties.getApiFlowId()
                 );
 
-                // 5. 流式传输完成后，保存AI回复消息到Redis缓存
+                // 5. 流式传输完成后，保存AI回复消息到数据库
                 String fullContent = accumulator.getFullContent();
                 long responseTime = System.currentTimeMillis() - startTime;
                 
                 AgentMessage aiMsg = new AgentMessage();
-                aiMsg.setSessionId(sessionId); // sessionId 已经在前面被赋值为 currentSessionId
+                aiMsg.setSessionId(sessionId);
                 aiMsg.setMessageType(2); // AI回复
                 aiMsg.setMessageContent(fullContent);
                 // 如果是新会话的第一次AI回复，序号应为2，否则通过 getNextMessageSeq 获取
@@ -209,8 +209,8 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                 aiMsg.setResponseTime((int) responseTime);
                 aiMsg.setCreateTime(new Date());
                 aiMsg.setDelFlag(0);
-                // 添加到Redis缓存，会自动异步同步到数据库
-                aiSessionCacheService.addMessageToCache(sessionId, aiMsg);
+                // 直接保存到数据库
+                agentMessageRepository.save(aiMsg);
                 
                 // 6. 更新会话信息
                 agentConversationService.updateConversation(sessionId, aiMessageSeq, null); // 更新消息总数
@@ -222,7 +222,7 @@ public class AgentMessageServiceImpl implements AgentMessageService{
             } catch (Exception e) {
                 long responseTime = System.currentTimeMillis() - startTime;
                 
-                // 保存错误消息到Redis缓存
+                // 保存错误消息到数据库
                 if (sessionId != null) {
                     AgentMessage errorMsg = new AgentMessage();
                     errorMsg.setSessionId(sessionId);
@@ -233,8 +233,8 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                     errorMsg.setErrorMessage(e.getMessage());
                     errorMsg.setCreateTime(new Date());
                     errorMsg.setDelFlag(0);
-                    // 添加到Redis缓存，会自动异步同步到数据库
-                    aiSessionCacheService.addMessageToCache(sessionId, errorMsg);
+                    // 直接保存到数据库
+                    agentMessageRepository.save(errorMsg);
                 }
                 
                 emitter.completeWithError(e);
@@ -246,6 +246,150 @@ public class AgentMessageServiceImpl implements AgentMessageService{
         });
 
         return emitter;
+    }
+    
+    @Override
+    public SseEmitter extractInterviewQuestions(InterviewQuestionReqDTO reqDTO) {
+        SseEmitter sseEmitter = new SseEmitter(0L);
+        Long agentId = reqDTO.getAgentId() == null ? 1345345L : reqDTO.getAgentId();
+        
+        // 新增内容累积器用于收集AI响应
+        AIContentAccumulator accumulator = new AIContentAccumulator();
+        
+        // 异步处理面试题抽取
+        CompletableFuture.runAsync(() -> {
+            long startTime = System.currentTimeMillis();
+            try {
+                // 1. 上传文件到讯飞服务器获取URL
+                String fileUrl = null;
+                if (reqDTO.getResumePdf() != null && !reqDTO.getResumePdf().isEmpty()) {
+                    try {
+                        // 获取智能体配置中的API密钥
+                        AgentPropertiesDO agentProperties = agentPropertiesLoader.getAgentPropertiesMap().get(agentId);
+                        if (agentProperties == null) {
+                            throw new RuntimeException("智能体配置不存在");
+                        }
+                        
+                        // 上传文件到讯飞服务器获取URL
+                        fileUrl = xingChenAIClient.uploadFile(
+                            reqDTO.getResumePdf(), 
+                            agentProperties.getApiKey(),
+                            agentProperties.getApiSecret()
+                        );
+                        log.info("文件上传成功，URL: {}", fileUrl);
+                    } catch (Exception e) {
+                        log.error("文件上传失败: {}", e.getMessage());
+                        sseEmitter.send(SseEmitter.event().data("文件上传失败，请重试"));
+                        sseEmitter.complete();
+                        return;
+                    }
+                }
+                
+                // 2. 构建面试题抽取的提示词
+                String promptBuilder = "帮我抽取一些面试题";
+                // 检查文件URL
+                if (fileUrl == null) {
+                    throw new RuntimeException("简历不存在");
+                }
+
+                // 3. 调用AI接口进行流式处理
+                AgentPropertiesDO agentProperties = agentPropertiesLoader.getAgentPropertiesMap().get(agentId);
+                if (agentProperties == null) {
+                    throw new RuntimeException("智能体配置不存在");
+                }
+                
+                // 4. 使用现有的XingChenAIClient进行流式传输
+                xingChenAIClient.chat(
+                        promptBuilder,
+                    reqDTO.getSessionId(),
+                    "{}", // 空的历史记录
+                    true,
+                    new OutputStream() {
+                        @Override
+                        public void write(int b) { /* 不需要实现 */ }
+
+                        @Override
+                        public void write(byte[] b, int off, int len) throws IOException {
+                            // 发送数据到前端
+                            String jsonChunk = new String(b, off, len);
+                            sseEmitter.send(SseEmitter.event().data(jsonChunk));
+                            
+                            // 累积内容到字符串
+                            accumulator.appendChunk(b);
+                        }
+
+                        @Override
+                        public void flush() { /* 确保数据发送 */ }
+                    },
+                    data -> {},
+                    agentProperties.getApiKey(),
+                    agentProperties.getApiSecret(),
+                    agentProperties.getApiFlowId(),
+                    fileUrl // 传递文件URL
+                );
+                
+                // 5. 流式传输完成后，保存面试题数据到MongoDB
+                String fullContent = accumulator.getFullContent();
+                long responseTime = System.currentTimeMillis() - startTime;
+                
+                // 设置文件URL到请求DTO中
+                reqDTO.setResumeFileUrl(fileUrl);
+                
+                // 保存面试题数据
+                try {
+                    interviewQuestionService.createFromAIResponse(
+                        reqDTO, 
+                        fullContent, 
+                        (int) responseTime, 
+                        null // tokenCount暂时为null，可以后续从AI响应中解析
+                    );
+                    log.info("面试题数据保存成功，会话ID: {}", reqDTO.getSessionId());
+                } catch (Exception e) {
+                    log.error("面试题数据保存失败，会话ID: {}, 错误: {}", reqDTO.getSessionId(), e.getMessage());
+                }
+                
+                // 6. 发送完成信号
+                sseEmitter.send(SseEmitter.event().name("end").data("[DONE]"));
+                sseEmitter.complete();
+                        
+            } catch (Exception e) {
+                long responseTime = System.currentTimeMillis() - startTime;
+                log.error("面试题抽取处理异常: {}", e.getMessage(), e);
+                
+                // 保存错误记录到MongoDB
+                try {
+                    reqDTO.setResumeFileUrl(null); // 错误情况下文件URL可能为空
+                    interviewQuestionService.createFromAIResponse(
+                        reqDTO, 
+                        "{\"error\":\"" + e.getMessage() + "\"}", 
+                        (int) responseTime, 
+                        null
+                    );
+                } catch (Exception saveException) {
+                    log.error("保存错误记录失败: {}", saveException.getMessage());
+                }
+                
+                try {
+                    sseEmitter.send(SseEmitter.event().data("系统异常，请稍后重试。"));
+                    sseEmitter.complete();
+                } catch (IOException ioException) {
+                    log.error("发送异常信息失败: {}", ioException.getMessage());
+                }
+            }
+        });
+        
+        // 设置SSE连接的超时和错误处理
+        sseEmitter.onTimeout(() -> {
+            log.warn("面试题抽取SSE连接超时，用户: {}", reqDTO.getUserName());
+            sseEmitter.complete();
+        });
+        
+        sseEmitter.onError(throwable -> {
+            log.error("面试题抽取SSE连接错误: {}", throwable.getMessage());
+            sseEmitter.complete();
+        });
+        
+        return sseEmitter;
     }
 }
 

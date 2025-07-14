@@ -5,6 +5,7 @@ import com.hewei.hzyjy.xunzhi.common.convention.result.Result;
 import com.hewei.hzyjy.xunzhi.common.convention.result.Results;
 import com.hewei.hzyjy.xunzhi.dto.req.agent.AgentConversationPageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.agent.AgentSessionCreateReqDTO;
+import com.hewei.hzyjy.xunzhi.dto.req.agent.InterviewQuestionReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserMessageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentConversationRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentMessageHistoryRespDTO;
@@ -16,6 +17,7 @@ import com.hewei.hzyjy.xunzhi.common.util.SaTokenUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 
@@ -107,6 +109,26 @@ public class AgentController {
     public Result<Void> endConversation(@PathVariable String sessionId) {
         agentConversationService.endConversation(sessionId);
         return Results.success();
+    }
+
+    /**
+     * 面试题获取接口
+     */
+    @PostMapping("/api/xunzhi-agent/admin/v1/agent/extract-interview-questions")
+    public SseEmitter extractInterviewQuestions(
+            @RequestParam("userName") String userName,
+            @RequestParam("agentId") Long agentId,
+            @RequestParam("sessionId") String sessionId,
+            @RequestParam("resumePdf") MultipartFile resumePdf) {
+        
+        // 构建请求DTO
+        InterviewQuestionReqDTO reqDTO = new InterviewQuestionReqDTO();
+        reqDTO.setUserName(userName);
+        reqDTO.setAgentId(agentId);
+        reqDTO.setSessionId(sessionId);
+        reqDTO.setResumePdf(resumePdf);
+        
+        return agentMessageService.extractInterviewQuestions(reqDTO);
     }
 
 
