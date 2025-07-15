@@ -50,12 +50,20 @@ public class SaTokenUtil {
         // 优先从 Header 中获取
         String token = request.getHeader(StpUtil.getTokenName());
         if (StrUtil.isNotBlank(token)) {
+            // 处理Bearer前缀
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // 去掉"Bearer "前缀
+            }
             return token;
         }
         
         // 从参数中获取
         token = request.getParameter(StpUtil.getTokenName());
         if (StrUtil.isNotBlank(token)) {
+            // 处理Bearer前缀
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // 去掉"Bearer "前缀
+            }
             return token;
         }
         

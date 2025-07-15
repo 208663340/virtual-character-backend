@@ -1,4 +1,4 @@
- /*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -31,7 +31,15 @@ public enum AgentErrorCodeEnum implements IErrorCode {
 
     AGENT_EXIST("B000302", "智能体记录已存在"),
 
-    AGENT_SAVE_ERROR("B000303", "智能体记录新增失败");
+    AGENT_SAVE_ERROR("B000303", "智能体记录新增失败"),
+
+    DEMEANOR_EVALUATION_FAILED("B000304", "神态评分失败"),
+
+    DEMEANOR_IMAGE_UPLOAD_FAILED("B000305", "神态评分图片上传失败"),
+
+    DEMEANOR_AI_RESPONSE_PARSE_FAILED("B000306", "神态评分AI响应解析失败"),
+
+    DEMEANOR_SCORE_INVALID("B000307", "神态评分数据无效");
 
     private final String code;
 

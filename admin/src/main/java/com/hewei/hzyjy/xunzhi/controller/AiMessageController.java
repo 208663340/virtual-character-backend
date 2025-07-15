@@ -21,7 +21,7 @@ import java.util.List;
  * @author nageoffer
  */
 @RestController
-@RequestMapping("/api/xunzhi-agent/ai/message")
+@RequestMapping("/api/xunzhi/v1/ai")
 @RequiredArgsConstructor
 public class AiMessageController {
     
@@ -31,13 +31,14 @@ public class AiMessageController {
     /**
      * AI聊天SSE接口
      */
-    @GetMapping(value = "/chat/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter aiChatSse(AiMessageReqDTO requestParam, HttpServletRequest request) {
+    @PostMapping(value = "/sessions/{sessionId}/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chat(@PathVariable String sessionId, @RequestBody AiMessageReqDTO requestParam, HttpServletRequest request) {
         // 从token中获取用户名
         String username = saTokenUtil.getUsernameFromRequest(request);
         if (username != null) {
             requestParam.setUserName(username);
         }
+        requestParam.setSessionId(sessionId);
         return aiMessageService.aiChatSse(requestParam);
     }
     

@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
  * @author nageoffer
  */
 @RestController
-@RequestMapping("/api/xunzhi-agent/ai/conversation")
+@RequestMapping("/api/xunzhi/v1/ai/conversations")
 @RequiredArgsConstructor
 public class AiConversationController {
     
@@ -47,7 +47,7 @@ public class AiConversationController {
     /**
      * 分页查询会话列表
      */
-    @GetMapping("/page")
+    @GetMapping
     public Result<IPage<AiConversationRespDTO>> pageConversations(
             AiConversationPageReqDTO requestParam,
             HttpServletRequest request) {

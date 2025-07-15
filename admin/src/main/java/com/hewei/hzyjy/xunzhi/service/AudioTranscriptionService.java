@@ -44,6 +44,16 @@ public class AudioTranscriptionService {
     }
     
     /**
+     * 简单的音频转文字方法（用于面试题回答）
+     * @param audioFile 音频文件
+     * @return 转写结果
+     * @throws Exception 转写异常
+     */
+    public String transcribeAudio(MultipartFile audioFile) throws Exception {
+        return transcribeSync(audioFile, null);
+    }
+    
+    /**
      * 同步音频转文字
      * @param audioFile 音频文件
      * @param partialResultCallback 中间结果回调（可选）

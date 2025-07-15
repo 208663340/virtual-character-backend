@@ -3,6 +3,8 @@ package com.hewei.hzyjy.xunzhi.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hewei.hzyjy.xunzhi.dao.entity.InterviewQuestion;
@@ -143,6 +145,14 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                 List<String> questions = responseJson.getJSONArray("questions")
                         .toJavaList(String.class);
                 question.setQuestions(questions);
+                
+                // 转换为JSON格式存储（按题号组织）
+                Map<String, String> questionsMap = new LinkedHashMap<>();
+                for (int i = 0; i < questions.size(); i++) {
+                    questionsMap.put(String.valueOf(i + 1), questions.get(i));
+                }
+                question.setQuestionsJson(JSON.toJSONString(questionsMap));
+                log.info("面试题JSON格式存储完成，会话ID: {}, 题目数量: {}", reqDTO.getSessionId(), questions.size());
             }
             
             // 解析建议列表
@@ -151,6 +161,25 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                 List<String> suggestions = responseJson.getJSONArray(suggestKey)
                         .toJavaList(String.class);
                 question.setSuggestions(suggestions);
+                
+                // 转换为JSON格式存储（按编号组织）
+                Map<String, String> suggestionsMap = new LinkedHashMap<>();
+                for (int i = 0; i < suggestions.size(); i++) {
+                    suggestionsMap.put(String.valueOf(i + 1), suggestions.get(i));
+                }
+                question.setSuggestionsJson(JSON.toJSONString(suggestionsMap));
+                log.info("面试建议JSON格式存储完成，会话ID: {}, 建议数量: {}", reqDTO.getSessionId(), suggestions.size());
+            }
+            
+            // 解析简历评分
+            if (responseJson.containsKey("resumeScore")) {
+                try {
+                    Integer resumeScore = responseJson.getInteger("resumeScore");
+                    question.setResumeScore(resumeScore);
+                    log.info("简历评分解析完成，会话ID: {}, 评分: {}", reqDTO.getSessionId(), resumeScore);
+                } catch (Exception e) {
+                    log.warn("简历评分解析失败，会话ID: {}, 错误: {}", reqDTO.getSessionId(), e.getMessage());
+                }
             }
             
             // 解析面试类型

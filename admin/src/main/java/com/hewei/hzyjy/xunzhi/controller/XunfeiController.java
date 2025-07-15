@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
  */
 @Slf4j
 @RestController
+@RequestMapping("/api/xunzhi/v1/xunfei")
 @RequiredArgsConstructor
 public class XunfeiController {
 
@@ -38,7 +39,7 @@ public class XunfeiController {
      * @param audioFile 音频文件
      * @return 转换结果
      */
-    @PostMapping("/api/xunzhi-agent/admin/v1/audio/convert")
+    @PostMapping("/audio-to-text")
     public Result<CompletableFuture<String>> convertAudioToText(
             @RequestParam("file") MultipartFile audioFile) {
         return Results.success(xunfeiAudioService.convertAudioToText(audioFile));
@@ -50,7 +51,7 @@ public class XunfeiController {
      * @param image 人脸图片
      * @return 表情识别结果
      */
-    @PostMapping("/api/xunzhi-agent/admin/v1/face/expression")
+    @PostMapping("/expression-recognition")
     public Result<CompletableFuture<ExpressionRecognitionResult>> detectExpression(
             @RequestParam("image") MultipartFile image) {
         return Results.success(xunfeiFaceService.detectExpression(image));
@@ -61,7 +62,7 @@ public class XunfeiController {
      * @param audioFile 音频文件
      * @return 转换结果
      */
-    @PostMapping("/api/xunzhi-agent/admin/v1/audio/transcribe")
+    @PostMapping("/audio-transcribe")
     public Result<String> transcribeAudio(
             @RequestParam("file") MultipartFile audioFile) {
         
@@ -82,7 +83,7 @@ public class XunfeiController {
      * @param file PDF文件（限制：只能是PDF格式，大小不超过20MB）
      * @return 文件上传结果
      */
-    @PostMapping("/api/xunzhi-agent/admin/v1/file/upload/pdf")
+    @PostMapping("/upload-pdf")
     public Result<FileUploadResult> uploadPdfFile(
             @RequestParam("file") MultipartFile file) {
         // 使用工具类验证PDF文件

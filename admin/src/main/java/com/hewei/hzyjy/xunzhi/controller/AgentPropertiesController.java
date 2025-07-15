@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/xunzhi-agent/admin/agentProperties")
+@RequestMapping("/api/xunzhi/v1/agent-properties")
 public class AgentPropertiesController {
 
     private final AgentPropertiesService agentPropertiesService;
@@ -26,7 +26,7 @@ public class AgentPropertiesController {
      * @param requestParam
      * @return
      */
-    @PostMapping("create")
+    @PostMapping
     public Result<Void> create(@RequestBody AgentPropertiesReqDTO requestParam) {
         agentPropertiesService.create(requestParam);
         return Results.success();
@@ -69,7 +69,7 @@ public class AgentPropertiesController {
      * @param requestParam
      * @return
      */
-    @GetMapping("/page")
+    @GetMapping
     public Result<PageInfo<AgentPropertiesRespDTO>> getByPage(AgentPropertiesReqDTO requestParam) {
         return Results.success(agentPropertiesService.getByPage(requestParam));
     }

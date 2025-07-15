@@ -18,7 +18,7 @@ import java.util.List;
  * @author nageoffer
  */
 @RestController
-@RequestMapping("/api/xunzhi-agent/ai/properties")
+@RequestMapping("/api/xunzhi/v1/ai-properties")
 @RequiredArgsConstructor
 public class AiPropertiesController {
     
@@ -27,7 +27,7 @@ public class AiPropertiesController {
     /**
      * 创建AI配置
      */
-    @PostMapping("/create")
+    @PostMapping
     public Result<Void> createAiProperties(@RequestBody AiPropertiesCreateReqDTO requestParam) {
         aiPropertiesService.createAiProperties(requestParam);
         return Results.success();
@@ -36,7 +36,7 @@ public class AiPropertiesController {
     /**
      * 更新AI配置
      */
-    @PutMapping("/update")
+    @PutMapping
     public Result<Void> updateAiProperties(@RequestBody AiPropertiesUpdateReqDTO requestParam) {
         aiPropertiesService.updateAiProperties(requestParam);
         return Results.success();
@@ -63,7 +63,7 @@ public class AiPropertiesController {
     /**
      * 分页查询AI配置
      */
-    @GetMapping("/page")
+    @GetMapping
     public Result<IPage<AiPropertiesRespDTO>> pageAiProperties(AiPropertiesPageReqDTO requestParam) {
         IPage<AiPropertiesRespDTO> result = aiPropertiesService.pageAiProperties(requestParam);
         return Results.success(result);

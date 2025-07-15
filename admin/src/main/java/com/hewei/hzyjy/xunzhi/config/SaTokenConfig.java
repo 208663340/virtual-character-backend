@@ -21,10 +21,10 @@ public class SaTokenConfig implements WebMvcConfigurer {
         // 注册Sa-Token拦截器，校验规则为StpUtil.checkLogin()登录校验
         registry.addInterceptor(new SaInterceptor(handle -> {
             SaRouter
-                    .match("/api/xunzhi-agent/admin/v1/**")    // 拦截的路径
-                    .notMatch("/api/xunzhi-agent/admin/v1/user/login")    // 排除登录接口
-                    .notMatch("/api/xunzhi-agent/admin/v1/user")          // 排除注册接口
-                    .notMatch("/api/xunzhi-agent/admin/v1/user/has-username") // 排除用户名检查接口
+                    .match("/api/xunzhi/v1/**")    // 拦截的路径
+                    .notMatch("/api/xunzhi/v1/users/login")    // 排除登录接口
+                    .notMatch("/api/xunzhi/v1/users/register")          // 排除注册接口
+                    .notMatch("/api/xunzhi/v1/users/has-username") // 排除用户名检查接口
                     .check(() -> StpUtil.checkLogin());        // 校验是否登录
         })).addPathPatterns("/**");
     }

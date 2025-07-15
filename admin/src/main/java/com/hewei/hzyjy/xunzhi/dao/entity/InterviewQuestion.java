@@ -40,14 +40,31 @@ public class InterviewQuestion {
     private Long agentId;
 
     /**
-     * 面试题列表
+     * 面试题列表（保留用于向后兼容）
      */
     private List<String> questions;
 
     /**
-     * 建议列表
+     * 面试题JSON格式存储（按题号组织）
+     * 格式：{"1": "题目内容1", "2": "题目内容2", ...}
+     */
+    private String questionsJson;
+
+    /**
+     * 建议列表（保留用于向后兼容）
      */
     private List<String> suggestions;
+
+    /**
+     * 建议JSON格式存储（按编号组织）
+     * 格式：{"1": "建议内容1", "2": "建议内容2", ...}
+     */
+    private String suggestionsJson;
+
+    /**
+     * 简历评分
+     */
+    private Integer resumeScore;
 
     /**
      * 面试类型（如：backend、frontend等）

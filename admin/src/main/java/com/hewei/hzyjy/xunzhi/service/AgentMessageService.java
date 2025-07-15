@@ -1,9 +1,12 @@
 package com.hewei.hzyjy.xunzhi.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.hewei.hzyjy.xunzhi.dto.req.agent.DemeanorEvaluationReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.agent.InterviewQuestionReqDTO;
+import com.hewei.hzyjy.xunzhi.dto.req.agent.InterviewAnswerReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserMessageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentMessageHistoryRespDTO;
+import com.hewei.hzyjy.xunzhi.dto.resp.agent.InterviewAnswerRespDTO;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
@@ -34,6 +37,18 @@ public interface AgentMessageService  {
      * 面试题抽取SSE流式接口
      */
     SseEmitter extractInterviewQuestions(InterviewQuestionReqDTO requestParam);
-
+    
+    /**
+     * 回答面试题并获取评分
+     */
+    InterviewAnswerRespDTO answerInterviewQuestion(String username, InterviewAnswerReqDTO requestParam);
+    
+    /**
+     * 神态评分
+     * @param username 用户名
+     * @param reqDTO 神态评估请求DTO
+     * @return 评分结果
+     */
+    String evaluateDemeanor(String username, DemeanorEvaluationReqDTO reqDTO);
 
 }

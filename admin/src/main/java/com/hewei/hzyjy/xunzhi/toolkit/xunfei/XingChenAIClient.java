@@ -74,7 +74,7 @@ public class XingChenAIClient {
         JSONObject parameters = new JSONObject();
         parameters.put("AGENT_USER_INPUT", input);
         if (fileUrl != null && !fileUrl.trim().isEmpty()) {
-            parameters.put("USER_RESUME", fileUrl);
+            parameters.put("USER_FILE", fileUrl);
         }
         requestBody.put("parameters", parameters);
         
