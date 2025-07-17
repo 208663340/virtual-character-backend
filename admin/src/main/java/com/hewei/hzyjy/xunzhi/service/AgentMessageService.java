@@ -7,6 +7,7 @@ import com.hewei.hzyjy.xunzhi.dto.req.agent.InterviewAnswerReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserMessageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentMessageHistoryRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.InterviewAnswerRespDTO;
+import com.hewei.hzyjy.xunzhi.dto.resp.agent.InterviewQuestionRespDTO;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
@@ -34,9 +35,9 @@ public interface AgentMessageService  {
     IPage<AgentMessageHistoryRespDTO> pageHistoryMessages(String username, String sessionId, Integer current, Integer size);
 
     /**
-     * 面试题抽取SSE流式接口
+     * 面试题抽取接口
      */
-    SseEmitter extractInterviewQuestions(InterviewQuestionReqDTO requestParam);
+    InterviewQuestionRespDTO extractInterviewQuestions(InterviewQuestionReqDTO requestParam);
     
     /**
      * 回答面试题并获取评分

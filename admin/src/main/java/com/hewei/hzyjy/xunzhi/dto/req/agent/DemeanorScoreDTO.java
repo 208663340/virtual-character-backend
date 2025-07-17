@@ -9,22 +9,22 @@ import lombok.Data;
 public class DemeanorScoreDTO {
 
     /**
-     * 慌乱度 (0-1)
+     * 慌乱度 (0-100)
      */
-    private Float panicLevel;
+    private Integer panicLevel;
     
     /**
-     * 严肃程度 (0-1)
+     * 严肃程度 (0-100)
      */
-    private Float seriousnessLevel;
+    private Integer seriousnessLevel;
     
     /**
-     * 表情处理 (0-1)
+     * 表情处理 (0-100)
      */
-    private Float emoticonHandling;
+    private Integer emoticonHandling;
     
     /**
-     * 综合得分 (0-1)
+     * 综合得分 (0-100)
      */
-    private Float compositeScore;
+    private Integer compositeScore;
 }

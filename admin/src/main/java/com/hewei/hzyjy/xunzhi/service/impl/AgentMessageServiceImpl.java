@@ -19,6 +19,7 @@ import com.hewei.hzyjy.xunzhi.dto.req.agent.InterviewAnswerReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserMessageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentMessageHistoryRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.InterviewAnswerRespDTO;
+import com.hewei.hzyjy.xunzhi.dto.resp.agent.InterviewQuestionRespDTO;
 import com.hewei.hzyjy.xunzhi.service.*;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.XingChenAIClient;
 
@@ -255,187 +256,212 @@ public class AgentMessageServiceImpl implements AgentMessageService{
     }
     
     @Override
-    public SseEmitter extractInterviewQuestions(InterviewQuestionReqDTO reqDTO) {
-        SseEmitter sseEmitter = new SseEmitter(0L);
+    public InterviewQuestionRespDTO extractInterviewQuestions(InterviewQuestionReqDTO reqDTO) {
+        InterviewQuestionRespDTO response = new InterviewQuestionRespDTO();
+        response.setSessionId(reqDTO.getSessionId());
+        response.setUserName(reqDTO.getUserName());
+        response.setAgentId(reqDTO.getAgentId());
+        response.setIsSuccess(0); // 默认失败
+
         Long agentId = reqDTO.getAgentId() == null ? 1345345L : reqDTO.getAgentId();
-        
+
         // 新增内容累积器用于收集AI响应
         AIContentAccumulator accumulator = new AIContentAccumulator();
-        
-        // 异步处理面试题抽取
-        CompletableFuture.runAsync(() -> {
-            long startTime = System.currentTimeMillis();
-            try {
-                // 1. 上传文件到讯飞服务器获取URL
-                String fileUrl = null;
-                if (reqDTO.getResumePdf() != null && !reqDTO.getResumePdf().isEmpty()) {
-                    try {
-                        // 获取智能体配置中的API密钥
-                        AgentPropertiesDO agentProperties = agentPropertiesLoader.getAgentPropertiesMap().get(agentId);
-                        if (agentProperties == null) {
-                            throw new ClientException("AGENT_CONFIG_NOT_FOUND", AgentErrorCodeEnum.AGENT_SAVE_ERROR);
-                        }
-                        
-                        // 上传文件到讯飞服务器获取URL
-                        fileUrl = xingChenAIClient.uploadFile(
-                            reqDTO.getResumePdf(), 
-                            agentProperties.getApiKey(),
-                            agentProperties.getApiSecret()
-                        );
-                        log.info("文件上传成功，URL: {}", fileUrl);
-                    } catch (Exception e) {
-                        log.error("文件上传失败: {}", e.getMessage());
-                        sseEmitter.send(SseEmitter.event().data("文件上传失败，请重试"));
-                        sseEmitter.complete();
-                        return;
-                    }
-                }
-                
-                // 2. 构建面试题抽取的提示词
-                String promptBuilder = "帮我抽取一些面试题";
-                // 检查文件URL
-                if (fileUrl == null) {
-                    throw new RuntimeException("简历不存在");
-                }
-
-                // 3. 调用AI接口进行流式处理
-                AgentPropertiesDO agentProperties = agentPropertiesLoader.getAgentPropertiesMap().get(agentId);
-                if (agentProperties == null) {
-                    throw new RuntimeException("智能体配置不存在");
-                }
-                
-                // 4. 使用现有的XingChenAIClient进行流式传输
-                xingChenAIClient.chat(
-                        promptBuilder,
-                    reqDTO.getSessionId(),
-                    "{}", // 空的历史记录
-                    true,
-                    new OutputStream() {
-                        @Override
-                        public void write(int b) { /* 不需要实现 */ }
-
-                        @Override
-                        public void write(byte[] b, int off, int len) throws IOException {
-                            // 发送数据到前端
-                            String jsonChunk = new String(b, off, len);
-                            sseEmitter.send(SseEmitter.event().data(jsonChunk));
-                            
-                            // 累积内容到字符串
-                            accumulator.appendChunk(b);
-                        }
-
-                        @Override
-                        public void flush() { /* 确保数据发送 */ }
-                    },
-                    data -> {},
-                    agentProperties.getApiKey(),
-                    agentProperties.getApiSecret(),
-                    agentProperties.getApiFlowId(),
-                    fileUrl // 传递文件URL
-                );
-                
-                // 5. 流式传输完成后，保存面试题数据到MongoDB
-                String fullContent = accumulator.getFullContent();
-                long responseTime = System.currentTimeMillis() - startTime;
-                
-                // 设置文件URL到请求DTO中
-                reqDTO.setResumeFileUrl(fileUrl);
-                
-                // 保存面试题数据
+        long startTime = System.currentTimeMillis();
+        // 同步处理面试题抽取
+        try {
+            // 1. 上传文件到讯飞服务器获取URL
+            String fileUrl = null;
+            if (reqDTO.getResumePdf() != null && !reqDTO.getResumePdf().isEmpty()) {
                 try {
-                    interviewQuestionService.createFromAIResponse(
-                        reqDTO, 
-                        fullContent, 
-                        (int) responseTime, 
-                        null // tokenCount暂时为null，可以后续从AI响应中解析
+                    // 获取智能体配置中的API密钥
+                    AgentPropertiesDO agentProperties = agentPropertiesLoader.getAgentPropertiesMap().get(agentId);
+                    if (agentProperties == null) {
+                        response.setErrorMessage("智能体配置不存在");
+                        return response;
+                    }
+
+                    // 上传文件到讯飞服务器获取URL
+                    fileUrl = xingChenAIClient.uploadFile(
+                        reqDTO.getResumePdf(),
+                        agentProperties.getApiKey(),
+                        agentProperties.getApiSecret()
                     );
-                    log.info("面试题数据保存成功，会话ID: {}", reqDTO.getSessionId());
-                    
-                    // 6. 解析AI响应并缓存面试题和建议到Redis
-                    try {
-                        log.info("开始解析AI响应，原始内容: {}", fullContent);
-                        
-                        // 从AI响应中提取真正的content内容
-                        String extractedContent = extractContentFromInterviewResponse(fullContent);
-                        log.info("提取的content内容: {}", extractedContent);
-                        
-                        if (StrUtil.isNotBlank(extractedContent)) {
-                            // 尝试解析提取出的content中的面试题和建议
-                            Map<String, Object> responseMap = JSON.parseObject(extractedContent, Map.class);
-                            if (responseMap != null) {
-                                log.info("成功解析响应Map，包含字段: {}", responseMap.keySet());
-                                
-                                // 缓存面试题
-                                if (responseMap.containsKey("questions")) {
-                                    Object questionsObj = responseMap.get("questions");
-                                    log.info("找到questions字段，类型: {}, 值: {}", questionsObj.getClass().getSimpleName(), questionsObj);
-                                    if (questionsObj instanceof List) {
-                                        @SuppressWarnings("unchecked")
-                                        List<String> questions = (List<String>) questionsObj;
-                                        if (!questions.isEmpty()) {
-                                            // 缓存面试题到Redis
-                                            interviewQuestionCacheService.cacheInterviewQuestions(reqDTO.getUserName(), questions);
-                                            log.info("面试题缓存成功，用户: {}, 题目数量: {}", reqDTO.getUserName(), questions.size());
-                                        }
-                                    }
-                                } else {
-                                    log.warn("响应中不包含questions字段");
-                                }
-                                
-                                // 缓存面试建议 - 支持sugest和suggestions两种字段名
-                                Object suggestionsObj = null;
-                                if (responseMap.containsKey("sugest")) {
-                                    suggestionsObj = responseMap.get("sugest");
-                                    log.info("找到sugest字段，类型: {}, 值: {}", suggestionsObj.getClass().getSimpleName(), suggestionsObj);
-                                } else if (responseMap.containsKey("suggestions")) {
-                                    suggestionsObj = responseMap.get("suggestions");
-                                    log.info("找到suggestions字段，类型: {}, 值: {}", suggestionsObj.getClass().getSimpleName(), suggestionsObj);
-                                } else {
-                                    log.warn("响应中不包含sugest或suggestions字段");
-                                }
-                                
-                                if (suggestionsObj instanceof List) {
+                    log.info("文件上传成功，URL: {}", fileUrl);
+                } catch (Exception e) {
+                    log.error("文件上传失败: {}", e.getMessage());
+                    response.setErrorMessage("文件上传失败，请重试");
+                    return response;
+                }
+            }
+
+            // 2. 构建面试题抽取的提示词
+            String promptBuilder = "帮我抽取一些面试题";
+            // 检查文件URL
+            if (fileUrl == null) {
+                response.setErrorMessage("简历不存在");
+                return response;
+            }
+
+            // 3. 调用AI接口进行同步处理
+            AgentPropertiesDO agentProperties = agentPropertiesLoader.getAgentPropertiesMap().get(agentId);
+            if (agentProperties == null) {
+                response.setErrorMessage("智能体配置不存在");
+                return response;
+            }
+            // 4. 使用现有的XingChenAIClient进行同步处理
+            StringBuilder aiResponse = new StringBuilder();
+            xingChenAIClient.chat(
+                promptBuilder,
+                reqDTO.getSessionId(),
+                "{}", // 空的历史记录
+                false, // 非流式
+                new OutputStream() {
+                    @Override
+                    public void write(int b) { /* 不需要实现 */ }
+
+                    @Override
+                    public void write(byte[] b, int off, int len) throws IOException {
+                        // 累积内容到字符串
+                        aiResponse.append(new String(b, off, len));
+                        accumulator.appendChunk(b);
+                    }
+
+                    @Override
+                    public void flush() { /* 确保数据发送 */ }
+                },
+                data -> {},
+                agentProperties.getApiKey(),
+                agentProperties.getApiSecret(),
+                agentProperties.getApiFlowId(),
+                fileUrl // 传递文件URL
+            );
+
+            // 5. AI响应处理完成后，保存面试题数据到MongoDB
+            String fullContent = accumulator.getFullContent();
+            long responseTime = System.currentTimeMillis() - startTime;
+
+            // 设置文件URL到请求DTO中
+            reqDTO.setResumeFileUrl(fileUrl);
+
+            // 保存面试题数据
+            try {
+                interviewQuestionService.createFromAIResponse(
+                    reqDTO,
+                    fullContent,
+                    (int) responseTime,
+                    null // tokenCount暂时为null，可以后续从AI响应中解析
+                );
+                log.info("面试题数据保存成功，会话ID: {}", reqDTO.getSessionId());
+
+                // 设置响应基本信息
+                response.setResumeFileUrl(fileUrl);
+                response.setResponseTime((int) responseTime);
+
+                // 6. 解析AI响应并缓存面试题和建议到Redis
+                try {
+                    log.info("开始解析AI响应，原始内容: {}", fullContent);
+
+                    // 从AI响应中提取真正的content内容
+                    String extractedContent = extractContentFromInterviewResponse(fullContent);
+                    log.info("提取的content内容: {}", extractedContent);
+
+                    if (StrUtil.isNotBlank(extractedContent)) {
+                        // 尝试解析提取出的content中的面试题和建议
+                        Map<String, Object> responseMap = JSON.parseObject(extractedContent, Map.class);
+                        if (responseMap != null) {
+                            log.info("成功解析响应Map，包含字段: {}", responseMap.keySet());
+
+                            // 缓存面试题
+                            if (responseMap.containsKey("questions")) {
+                                Object questionsObj = responseMap.get("questions");
+                                log.info("找到questions字段，类型: {}, 值: {}", questionsObj.getClass().getSimpleName(), questionsObj);
+                                if (questionsObj instanceof List) {
                                     @SuppressWarnings("unchecked")
-                                    List<String> suggestions = (List<String>) suggestionsObj;
-                                    if (!suggestions.isEmpty()) {
-                                        // 缓存面试建议到Redis
-                                        interviewQuestionCacheService.cacheInterviewSuggestions(reqDTO.getUserName(), suggestions);
-                                        log.info("面试建议缓存成功，用户: {}, 建议数量: {}", reqDTO.getUserName(), suggestions.size());
+                                    List<String> questions = (List<String>) questionsObj;
+                                    if (!questions.isEmpty()) {
+                                        // 缓存面试题到Redis
+                                        interviewQuestionCacheService.cacheInterviewQuestions(reqDTO.getUserName(), questions);
+                                        log.info("面试题缓存成功，用户: {}, 题目数量: {}", reqDTO.getUserName(), questions.size());
+
+                                        // 从缓存获取Map格式的面试题并设置到响应对象
+                                        Map<String, String> questionMap = interviewQuestionCacheService.getUserInterviewQuestions(reqDTO.getUserName());
+                                        response.setQuestions(questionMap);
+                                        response.setQuestionCount(questions.size());
                                     }
                                 }
-                                
-                                // 缓存简历评分
-                                if (responseMap.containsKey("resumeScore")) {
-                                    Object resumeScoreObj = responseMap.get("resumeScore");
-                                    log.info("找到resumeScore字段，类型: {}, 值: {}", resumeScoreObj.getClass().getSimpleName(), resumeScoreObj);
-                                    Integer resumeScore = null;
-                                    
-                                    if (resumeScoreObj instanceof Number) {
-                                        resumeScore = ((Number) resumeScoreObj).intValue();
-                                    } else if (resumeScoreObj instanceof String) {
-                                        try {
-                                            resumeScore = Integer.parseInt((String) resumeScoreObj);
-                                        } catch (NumberFormatException e) {
-                                             log.warn("无法解析简历评分字符串: {}", resumeScoreObj);
-                                         }
-                                     }
-                                     
+                            } else {
+                                log.warn("响应中不包含questions字段");
+                            }
+
+                                // 缓存面试建议 - 支持sugest和suggestions两种字段名
+                                List<String> suggestions = null;
+                                if (responseMap.containsKey("sugest")) {
+                                    Object sugestObj = responseMap.get("sugest");
+                                    log.info("找到sugest字段，类型: {}, 值: {}", sugestObj.getClass().getSimpleName(), sugestObj);
+                                    if (sugestObj instanceof List) {
+                                        @SuppressWarnings("unchecked")
+                                        List<String> sugestList = (List<String>) sugestObj;
+                                        suggestions = sugestList;
+                                    }
+                                } else if (responseMap.containsKey("suggestions")) {
+                                    Object suggestionsObj = responseMap.get("suggestions");
+                                    log.info("找到suggestions字段，类型: {}, 值: {}", suggestionsObj.getClass().getSimpleName(), suggestionsObj);
+                                    if (suggestionsObj instanceof List) {
+                                        @SuppressWarnings("unchecked")
+                                        List<String> suggestionsList = (List<String>) suggestionsObj;
+                                        suggestions = suggestionsList;
+                                    }
+                                }
+
+                                if (suggestions != null && !suggestions.isEmpty()) {
+                                    // 缓存面试建议到Redis
+                                    interviewQuestionCacheService.cacheInterviewSuggestions(reqDTO.getUserName(), suggestions);
+                                    log.info("面试建议缓存成功，用户: {}, 建议数量: {}", reqDTO.getUserName(), suggestions.size());
+
+                                    // 从缓存获取Map格式的面试建议并设置到响应对象
+                                    Map<String, String> suggestionMap = interviewQuestionCacheService.getUserInterviewSuggestions(reqDTO.getUserName());
+                                    response.setSuggestions(suggestionMap);
+                                    response.setSuggestionCount(suggestions.size());
+                                } else {
+                                    log.warn("响应中不包含有效的面试建议字段");
+                                }
+
+                            // 缓存简历评分
+                            if (responseMap.containsKey("score")) {
+                                Object scoreObj = responseMap.get("score");
+                                log.info("找到score字段，类型: {}, 值: {}", scoreObj.getClass().getSimpleName(), scoreObj);
+                                 Integer resumeScore = null;
+
+                                 if (scoreObj instanceof Number) {
+                                     resumeScore = ((Number) scoreObj).intValue();
+                                 } else if (scoreObj instanceof String) {
+                                     try {
+                                         resumeScore = Integer.parseInt((String) scoreObj);
+                                     } catch (NumberFormatException e) {
+                                          log.warn("无法解析简历评分字符串: {}", scoreObj);
+                                      }
+                                  }
+
                                      if (resumeScore != null && resumeScore >= 0 && resumeScore <= 100) {
                                          // 缓存简历评分到Redis
                                          interviewQuestionCacheService.cacheResumeScore(reqDTO.getUserName(), resumeScore);
                                          log.info("简历评分缓存成功，用户: {}, 评分: {}", reqDTO.getUserName(), resumeScore);
+
+                                         // 设置到响应对象
+                                         response.setResumeScore(resumeScore);
                                      } else {
                                          log.warn("简历评分超出范围或格式不正确: {}", resumeScore);
                                      }
-                                 } else {
-                                     log.warn("响应中不包含resumeScore字段");
-                                 }
-                                
-                                // 重置用户分数（只有在有面试题、建议或简历评分时才重置）
-                                if (responseMap.containsKey("questions") || responseMap.containsKey("sugest") || responseMap.containsKey("suggestions") || responseMap.containsKey("resumeScore")) {
-                                    interviewQuestionCacheService.resetUserScore(reqDTO.getUserName());
-                                    log.info("用户分数已重置，用户: {}", reqDTO.getUserName());
-                                }
+                             } else {
+                                 log.warn("响应中不包含score字段");
+                             }
+
+                            // 重置用户分数（只有在有面试题、建议或简历评分时才重置）
+                            if (responseMap.containsKey("questions") || responseMap.containsKey("sugest") || responseMap.containsKey("suggestions") || responseMap.containsKey("score")) {
+                                interviewQuestionCacheService.resetUserScore(reqDTO.getUserName());
+                                log.info("用户分数已重置，用户: {}", reqDTO.getUserName());
+                            }
                             } else {
                                 log.warn("解析AI响应失败，responseMap为null");
                             }
@@ -445,60 +471,43 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                     } catch (Exception cacheException) {
                         log.error("缓存面试题、建议和简历评分失败，用户: {}, 错误: {}", reqDTO.getUserName(), cacheException.getMessage());
                     }
-                    
+
                 } catch (Exception e) {
                     log.error("面试题数据保存失败，会话ID: {}, 错误: {}", reqDTO.getSessionId(), e.getMessage());
                 }
-                
-                // 6. 发送完成信号
-                sseEmitter.send(SseEmitter.event().name("end").data("[DONE]"));
-                sseEmitter.complete();
-                        
-            } catch (Exception e) {
-                long responseTime = System.currentTimeMillis() - startTime;
-                log.error("面试题抽取处理异常: {}", e.getMessage(), e);
-                
-                // 保存错误记录到MongoDB
-                try {
-                    reqDTO.setResumeFileUrl(null); // 错误情况下文件URL可能为空
-                    interviewQuestionService.createFromAIResponse(
-                        reqDTO, 
-                        "{\"error\":\"" + e.getMessage() + "\"}", 
-                        (int) responseTime, 
-                        null
-                    );
-                } catch (Exception saveException) {
-                    log.error("保存错误记录失败: {}", saveException.getMessage());
-                }
-                
-                try {
-                    sseEmitter.send(SseEmitter.event().data("系统异常，请稍后重试。"));
-                    sseEmitter.complete();
-                } catch (IOException ioException) {
-                    log.error("发送异常信息失败: {}", ioException.getMessage());
-                }
+
+                // 设置成功状态
+                response.setIsSuccess(1);
+                log.info("面试题抽取完成，会话ID: {}", reqDTO.getSessionId());
+                return response;
+
+        } catch (Exception e) {
+            long responseTime = System.currentTimeMillis() - startTime;
+            log.error("面试题抽取处理异常: {}", e.getMessage(), e);
+
+            // 保存错误记录到MongoDB
+            try {
+                reqDTO.setResumeFileUrl(null); // 错误情况下文件URL可能为空
+                interviewQuestionService.createFromAIResponse(
+                    reqDTO,
+                    "{\"error\":\"" + e.getMessage() + "\"}",
+                    (int) responseTime,
+                    null
+                );
+            } catch (Exception saveException) {
+                log.error("保存错误记录失败: {}", saveException.getMessage());
             }
-        });
-        
-        // 设置SSE连接的超时和错误处理
-        sseEmitter.onTimeout(() -> {
-            log.warn("面试题抽取SSE连接超时，用户: {}", reqDTO.getUserName());
-            sseEmitter.complete();
-        });
-        
-        sseEmitter.onError(throwable -> {
-            log.error("面试题抽取SSE连接错误: {}", throwable.getMessage());
-            sseEmitter.complete();
-        });
-        
-        return sseEmitter;
+
+            response.setErrorMessage("面试题抽取失败: " + e.getMessage());
+            response.setIsSuccess(0);
+            return response;
+        }
     }
     
     @Override
     public InterviewAnswerRespDTO answerInterviewQuestion(String username, InterviewAnswerReqDTO requestParam) {
         InterviewAnswerRespDTO response = new InterviewAnswerRespDTO();
         response.setQuestionNumber(requestParam.getQuestionNumber());
-        response.setIsSuccess(false);
         
         try {
             // 1. 从缓存中获取题目内容

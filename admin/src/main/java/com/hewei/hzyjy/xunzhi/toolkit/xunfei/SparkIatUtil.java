@@ -1,7 +1,7 @@
 package com.hewei.hzyjy.xunzhi.toolkit.xunfei;
 
 import cn.xfyun.config.SparkIatModelEnum;
-import com.hewei.hzyjy.xunzhi.config.XunfeiLatProperties;
+import com.hewei.hzyjy.xunzhi.config.xunfei.XunfeiLatProperties;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

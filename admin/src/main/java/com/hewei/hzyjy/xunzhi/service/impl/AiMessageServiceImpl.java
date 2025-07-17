@@ -6,6 +6,7 @@ import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hewei.hzyjy.xunzhi.common.convention.exception.ClientException;
+import com.hewei.hzyjy.xunzhi.config.sse.SseConfig;
 import com.hewei.hzyjy.xunzhi.dao.entity.AiMessage;
 // 移除AgentMessage导入，不再需要
 import com.hewei.hzyjy.xunzhi.dao.entity.AiPropertiesDO;
@@ -55,6 +56,7 @@ public class AiMessageServiceImpl implements AiMessageService {
     private final UserService userService;
     private final SparkAIClient sparkAIClient;
     private final StringRedisTemplate stringRedisTemplate;
+    private final SseConfig sseConfig;
     private final SimpleAsyncTaskExecutor asyncTask = new SimpleAsyncTaskExecutor();
     @Override
     public SseEmitter aiChatSse(AiMessageReqDTO requestParam) {
@@ -63,7 +65,7 @@ public class AiMessageServiceImpl implements AiMessageService {
             throw new IllegalArgumentException("sessionId不能为空");
         }
 
-        SseEmitter emitter = new SseEmitter(18000L);
+        SseEmitter emitter = new SseEmitter(sseConfig.getTimeout());
         String userName = requestParam.getUserName() == null ? "默认" : requestParam.getUserName();
         Long aiId = requestParam.getAiId();
         String userMessage = requestParam.getInputMessage();
@@ -122,12 +124,22 @@ public class AiMessageServiceImpl implements AiMessageService {
 
                                 @Override
                                 public void write(byte[] b, int off, int len) throws IOException {
-                                    // 发送数据到前端
-                                    String jsonChunk = new String(b, off, len);
-                                    emitter.send(SseEmitter.event().data(jsonChunk));
+                                    try {
+                                        // 发送数据到前端
+                                        String jsonChunk = new String(b, off, len);
+                                        emitter.send(SseEmitter.event().data(jsonChunk));
 
-                                    // 累积内容到字符串
-                                    accumulator.appendChunk(b);
+                                        // 累积内容到字符串
+                                        accumulator.appendChunk(b);
+                                        
+                                        // 发送心跳保持连接活跃
+                                        if (sseConfig.getEnableHeartbeat() && System.currentTimeMillis() % sseConfig.getHeartbeatInterval() < 100) {
+                                            emitter.send(SseEmitter.event().name("heartbeat").data("ping"));
+                                        }
+                                    } catch (IOException e) {
+                                        log.error("SSE数据发送失败", e);
+                                        throw e;
+                                    }
                                 }
 
                                 @Override
@@ -195,11 +207,22 @@ public class AiMessageServiceImpl implements AiMessageService {
         
         emitter.onTimeout(() -> {
             log.warn("SSE连接超时，sessionId: {}", sessionId);
+            try {
+                emitter.send(SseEmitter.event().name("timeout").data("连接超时"));
+            } catch (IOException e) {
+                log.error("发送超时消息失败", e);
+            }
             emitter.complete();
         });
         
         emitter.onError(throwable -> {
             log.error("SSE连接异常，sessionId: {}", sessionId, throwable);
+            try {
+                emitter.send(SseEmitter.event().name("error").data("连接异常: " + throwable.getMessage()));
+            } catch (IOException e) {
+                log.error("发送错误消息失败", e);
+            }
+            emitter.completeWithError(throwable);
         });
         
         return emitter;

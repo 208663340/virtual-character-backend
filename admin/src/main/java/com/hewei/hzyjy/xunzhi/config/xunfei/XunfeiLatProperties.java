@@ -1,4 +1,4 @@
-package com.hewei.hzyjy.xunzhi.config;
+package com.hewei.hzyjy.xunzhi.config.xunfei;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

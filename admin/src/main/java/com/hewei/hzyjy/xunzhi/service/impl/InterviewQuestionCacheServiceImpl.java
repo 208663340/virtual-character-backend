@@ -448,28 +448,29 @@ public class InterviewQuestionCacheServiceImpl implements InterviewQuestionCache
             
             RadarChartDTO radarChart = new RadarChartDTO();
             
-            // 转换为0-1范围的浮点数
-            Float resumeNormalized = resumeScore != null ? resumeScore / 100.0f : 0.0f;
-            Float interviewNormalized = totalScore != null ? Math.min(totalScore / 100.0f, 1.0f) : 0.0f;
-            Float demeanorNormalized = demeanorScore != null ? demeanorScore / 100.0f : 0.0f;
+            // 直接使用0-100范围的整数
+            Integer resumeNormalized = resumeScore != null ? resumeScore : 0;
+            Integer interviewNormalized = totalScore != null ? Math.min(totalScore, 100) : 0;
+            // 神态评分从十分制转换为百分制（乘以10）
+            Integer demeanorNormalized = demeanorScore != null ? Math.min(demeanorScore * 10, 100) : 0;
             
             radarChart.setResumeScore(resumeNormalized);
             radarChart.setInterviewPerformance(interviewNormalized);
             radarChart.setDemeanorEvaluation(demeanorNormalized);
             
-            // 生成专业技能评分：基于简历评分上下浮动0.1以内的随机数
-            Float professionalSkills = resumeNormalized;
+            // 生成专业技能评分：基于简历评分上下浮动10分以内的随机数
+            Integer professionalSkills = resumeNormalized;
             if (resumeScore != null && resumeScore > 0) {
-                // 生成-0.1到0.1之间的随机数
-                double randomOffset = (Math.random() - 0.5) * 0.2; // -0.1 到 0.1
-                professionalSkills = Math.max(0.0f, Math.min(1.0f, resumeNormalized + (float)randomOffset));
+                // 生成-10到10之间的随机数
+                int randomOffset = (int)((Math.random() - 0.5) * 20); // -10 到 10
+                professionalSkills = Math.max(0, Math.min(100, resumeNormalized + randomOffset));
             }
             radarChart.setProfessionalSkills(professionalSkills);
             
             // 按权重计算用户潜力指数
             // resume: 0.25, interview: 0.4, demeanor: 0.15, professional: 0.2
-            Float potentialIndex = resumeNormalized * 0.25f + interviewNormalized * 0.4f + 
-                                 demeanorNormalized * 0.15f + professionalSkills * 0.2f;
+            Integer potentialIndex = (int)(resumeNormalized * 0.25 + interviewNormalized * 0.4 + 
+                                 demeanorNormalized * 0.15 + professionalSkills * 0.2);
             radarChart.setPotentialIndex(potentialIndex);
             
             log.info("获取用户 {} 雷达图数据成功", username);
@@ -478,11 +479,11 @@ public class InterviewQuestionCacheServiceImpl implements InterviewQuestionCache
             log.error("获取用户雷达图数据失败，用户: {}, 错误: {}", username, e.getMessage(), e);
             // 返回默认值
             RadarChartDTO defaultChart = new RadarChartDTO();
-            defaultChart.setResumeScore(0.0f);
-            defaultChart.setInterviewPerformance(0.0f);
-            defaultChart.setDemeanorEvaluation(0.0f);
-            defaultChart.setProfessionalSkills(0.0f);
-            defaultChart.setPotentialIndex(0.0f);
+            defaultChart.setResumeScore(0);
+            defaultChart.setInterviewPerformance(0);
+            defaultChart.setDemeanorEvaluation(0);
+            defaultChart.setProfessionalSkills(0);
+            defaultChart.setPotentialIndex(0);
             return defaultChart;
         }
     }
@@ -528,15 +529,15 @@ public class InterviewQuestionCacheServiceImpl implements InterviewQuestionCache
             
             DemeanorScoreDTO demeanorScoreDTO = new DemeanorScoreDTO();
             
-            // 将0-100的整数转换为0-1的浮点数
+            // 神态评分从十分制转换为百分制（乘以10）
             demeanorScoreDTO.setPanicLevel(StrUtil.isNotBlank(panicStr) ? 
-                Math.max(0.0f, Math.min(1.0f, Integer.parseInt(panicStr) / 100.0f)) : 0.0f);
+                Math.min(Integer.parseInt(panicStr) * 10, 100) : 0);
             demeanorScoreDTO.setSeriousnessLevel(StrUtil.isNotBlank(seriousnessStr) ? 
-                Math.max(0.0f, Math.min(1.0f, Integer.parseInt(seriousnessStr) / 100.0f)) : 0.0f);
+                Math.min(Integer.parseInt(seriousnessStr) * 10, 100) : 0);
             demeanorScoreDTO.setEmoticonHandling(StrUtil.isNotBlank(emoticonStr) ? 
-                Math.max(0.0f, Math.min(1.0f, Integer.parseInt(emoticonStr) / 100.0f)) : 0.0f);
+                Math.min(Integer.parseInt(emoticonStr) * 10, 100) : 0);
             demeanorScoreDTO.setCompositeScore(StrUtil.isNotBlank(compositeStr) ? 
-                Math.max(0.0f, Math.min(1.0f, Integer.parseInt(compositeStr) / 100.0f)) : 0.0f);
+                Math.min(Integer.parseInt(compositeStr) * 10, 100) : 0);
             
             log.info("获取用户 {} 神态评分详细数据成功", username);
             return demeanorScoreDTO;
@@ -544,10 +545,10 @@ public class InterviewQuestionCacheServiceImpl implements InterviewQuestionCache
             log.error("获取用户神态评分详细数据失败，用户: {}, 错误: {}", username, e.getMessage(), e);
             // 返回默认值
             DemeanorScoreDTO defaultScore = new DemeanorScoreDTO();
-            defaultScore.setPanicLevel(0.0f);
-            defaultScore.setSeriousnessLevel(0.0f);
-            defaultScore.setEmoticonHandling(0.0f);
-            defaultScore.setCompositeScore(0.0f);
+            defaultScore.setPanicLevel(0);
+            defaultScore.setSeriousnessLevel(0);
+            defaultScore.setEmoticonHandling(0);
+            defaultScore.setCompositeScore(0);
             return defaultScore;
         }
     }

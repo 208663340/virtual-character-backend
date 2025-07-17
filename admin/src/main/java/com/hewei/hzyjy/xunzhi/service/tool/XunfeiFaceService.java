@@ -3,7 +3,7 @@ package com.hewei.hzyjy.xunzhi.service.tool;
 import cn.xfyun.api.TupApiClient;
 import cn.xfyun.config.TupApiEnum;
 import com.alibaba.fastjson2.JSON;
-import com.hewei.hzyjy.xunzhi.config.XunfeiLatProperties;
+import com.hewei.hzyjy.xunzhi.config.xunfei.XunfeiLatProperties;
 import com.hewei.hzyjy.xunzhi.dto.resp.xunfei.ExpressionRecognitionResponse;
 import com.hewei.hzyjy.xunzhi.dto.resp.xunfei.ExpressionRecognitionResult;
 import com.hewei.hzyjy.xunzhi.enums.ExpressionType;

@@ -7,6 +7,7 @@ import com.hewei.hzyjy.xunzhi.dto.req.agent.AgentConversationPageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.agent.AgentSessionCreateReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.agent.InterviewQuestionReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.agent.InterviewAnswerReqDTO;
+import com.hewei.hzyjy.xunzhi.dto.resp.agent.InterviewQuestionRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserMessageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentConversationRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentMessageHistoryRespDTO;
@@ -124,7 +125,7 @@ public class AgentController {
      * 面试题获取接口
      */
     @PostMapping("/sessions/{sessionId}/interview-questions")
-    public SseEmitter extractInterviewQuestions(
+    public Result<InterviewQuestionRespDTO> extractInterviewQuestions(
             @PathVariable String sessionId,
             @RequestParam("agentId") Long agentId,
             @RequestParam("resumePdf") MultipartFile resumePdf,
@@ -140,7 +141,8 @@ public class AgentController {
         reqDTO.setSessionId(sessionId);
         reqDTO.setResumePdf(resumePdf);
         
-        return agentMessageService.extractInterviewQuestions(reqDTO);
+        InterviewQuestionRespDTO result = agentMessageService.extractInterviewQuestions(reqDTO);
+        return Results.success(result);
     }
     
     /**

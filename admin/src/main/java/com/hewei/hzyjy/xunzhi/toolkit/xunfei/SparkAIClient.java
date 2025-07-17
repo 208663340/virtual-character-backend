@@ -40,8 +40,8 @@ public class SparkAIClient {
         URL url = new URL(API_URL);
         HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
-        conn.setConnectTimeout(120_000); // Adding timeouts similar to XingChenAIClient
-        conn.setReadTimeout(120_000);
+        conn.setConnectTimeout(30_000); // 连接超时30秒
+        conn.setReadTimeout(300_000); // 读取超时5分钟，适应长时间输出
 
         //请求头
         conn.setRequestProperty("Content-Type", "application/json");
@@ -109,6 +109,12 @@ public class SparkAIClient {
                     // 过滤空行和无效数据
                     if (line.trim().isEmpty()) {
                         continue;
+                    }
+                    
+                    // 检查连接是否被中断
+                    if (Thread.currentThread().isInterrupted()) {
+                        System.out.println("[SparkAIClient] 检测到线程中断，停止数据读取");
+                        break;
                     }
                     // 处理SSE格式数据和结束标记
                     String processedLine = null;

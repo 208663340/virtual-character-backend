@@ -1,4 +1,4 @@
-package com.hewei.hzyjy.xunzhi.config;
+package com.hewei.hzyjy.xunzhi.config.satoken;
 
 import cn.dev33.satoken.stp.StpInterface;
 import com.hewei.hzyjy.xunzhi.service.AdminPermissionService;

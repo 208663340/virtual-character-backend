@@ -9,27 +9,27 @@ import lombok.Data;
 public class RadarChartDTO {
     
     /**
-     * 简历评估得分 (0-1)
+     * 简历评估得分 (0-100)
      */
-    private Float resumeScore;
+    private Integer resumeScore;
     
     /**
-     * 面试表现得分 (0-1)
+     * 面试表现得分 (0-100)
      */
-    private Float interviewPerformance;
+    private Integer interviewPerformance;
     
     /**
-     * 神态管理评分 (0-1)
+     * 神态管理评分 (0-100)
      */
-    private Float demeanorEvaluation;
+    private Integer demeanorEvaluation;
     
     /**
-     * 用户潜力指数 (0-1)
+     * 用户潜力指数 (0-100)
      */
-    private Float potentialIndex;
+    private Integer potentialIndex;
     
     /**
-     * 专业技能评分 (0-1)
+     * 专业技能评分 (0-100)
      */
-    private Float professionalSkills;
+    private Integer professionalSkills;
 }

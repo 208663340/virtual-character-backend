@@ -9,7 +9,7 @@ import cn.xfyun.model.response.rtasr.RtasrResponse;
 import cn.xfyun.service.iat.AbstractIatWebSocketListener;
 import cn.xfyun.service.rta.AbstractRtasrWebSocketListener;
 import com.alibaba.fastjson2.JSONObject;
-import com.hewei.hzyjy.xunzhi.config.XunfeiLatProperties;
+import com.hewei.hzyjy.xunzhi.config.xunfei.XunfeiLatProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
