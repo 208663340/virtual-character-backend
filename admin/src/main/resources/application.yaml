@@ -24,6 +24,10 @@ spring:
     redis:
       host: 127.0.0.1
       port: 6379
+
+          initial-interval: 1000
+          max-attempts: 3
+          multiplier: 2
   # Spring配置
   # 定时任务配置
   task:

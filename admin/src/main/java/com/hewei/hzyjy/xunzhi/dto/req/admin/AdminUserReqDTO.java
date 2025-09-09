@@ -9,7 +9,7 @@ import lombok.Data;
 public class AdminUserReqDTO {
 
     /**
-     * 用户ID
+     * 用户名
      */
-    private Long userId;
+    private String username;
 }

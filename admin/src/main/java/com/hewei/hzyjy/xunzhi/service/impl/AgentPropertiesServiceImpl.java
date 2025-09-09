@@ -119,7 +119,8 @@ public class AgentPropertiesServiceImpl extends ServiceImpl<AgentPropertiesMappe
         PageInfo<AgentPropertiesRespDTO> pageInfo = new PageInfo<>();
         pageInfo.setRecords(resultList);
         pageInfo.setTotal(agentPropertiesDOPage.getTotal());
-        pageInfo.setPages(agentPropertiesDOPage.getCurrent());
+        pageInfo.setCurrent(agentPropertiesDOPage.getCurrent());
+        pageInfo.setPages(agentPropertiesDOPage.getPages());
         pageInfo.setSize(agentPropertiesDOPage.getSize());
         return pageInfo;
     }

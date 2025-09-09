@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hewei.hzyjy.xunzhi.dto.req.ai.AiMessageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.ai.AiMessageHistoryRespDTO;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -19,6 +20,11 @@ public interface AiMessageService {
     SseEmitter aiChatSse(AiMessageReqDTO requestParam);
     
     /**
+     * AI聊天Flux接口
+     */
+    Flux<String> aiChatFlux(AiMessageReqDTO requestParam);
+    
+    /**
      * 查询会话历史消息
      */
     List<AiMessageHistoryRespDTO> getConversationHistory(String sessionId);
@@ -26,7 +32,7 @@ public interface AiMessageService {
     /**
      * 分页查询历史消息
      */
-    IPage<AiMessageHistoryRespDTO> pageHistoryMessages(String username, String sessionId, Integer current, Integer size);
+    IPage<AiMessageHistoryRespDTO> pageHistoryMessages(String sessionId, Integer current, Integer size);
     
     /**
      * 根据用户名获取用户ID

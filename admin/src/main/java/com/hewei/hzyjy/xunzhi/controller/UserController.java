@@ -22,15 +22,20 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.bean.BeanUtil;
 import com.hewei.hzyjy.xunzhi.common.convention.result.Result;
 import com.hewei.hzyjy.xunzhi.common.convention.result.Results;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.hewei.hzyjy.xunzhi.common.util.SaTokenUtil;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserLoginReqDTO;
+import com.hewei.hzyjy.xunzhi.dto.req.user.UserPageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserRegisterReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserUpdateReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.user.UserActualRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.user.UserLoginRespDTO;
+import com.hewei.hzyjy.xunzhi.dto.resp.user.UserPageRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.user.UserRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.admin.AdminUserReqDTO;
 import com.hewei.hzyjy.xunzhi.service.AdminPermissionService;
 import com.hewei.hzyjy.xunzhi.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,6 +52,7 @@ public class UserController {
 
     private final UserService userService;
     private final AdminPermissionService adminPermissionService;
+    private final SaTokenUtil saTokenUtil;
 
     /**
      * 根据用户名查询用户信息
@@ -154,9 +160,17 @@ public class UserController {
      */
     @PostMapping("/admin")
     @SaCheckRole("admin")
-    public Result<Void> addAdmin(@RequestBody AdminUserReqDTO requestParam) {
-        adminPermissionService.setAdminByUserId(requestParam.getUserId());
+    public Result<Void> addAdmin(@RequestBody String username) {
+        adminPermissionService.setAdminByUserId(username);
         return Results.success();
+    }
+
+    /**
+     * 分页查询用户列表
+     */
+    @GetMapping("/page")
+    public Result<IPage<UserPageRespDTO>> pageUsers(UserPageReqDTO requestParam) {
+        return Results.success(userService.pageUsers(requestParam));
     }
 
     /**

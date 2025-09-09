@@ -17,6 +17,7 @@ import com.hewei.hzyjy.xunzhi.dto.resp.ai.AiMessageHistoryRespDTO;
 import com.hewei.hzyjy.xunzhi.service.AiConversationService;
 import com.hewei.hzyjy.xunzhi.service.AiMessageService;
 import com.hewei.hzyjy.xunzhi.service.AiPropertiesService;
+
 import com.hewei.hzyjy.xunzhi.service.UserService;
 // 移除Redis缓存服务导入
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AIContentAccumulator;
@@ -31,6 +32,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -52,11 +54,12 @@ public class AiMessageServiceImpl implements AiMessageService {
     private final AiMessageRepository aiMessageRepository;
     private final AiPropertiesService aiPropertiesService;
     private final AiConversationService aiConversationService;
-    // 移除Redis缓存服务注入
+    // 移除AgentPropertiesService依赖，不再需要
     private final UserService userService;
     private final SparkAIClient sparkAIClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final SseConfig sseConfig;
+
     private final SimpleAsyncTaskExecutor asyncTask = new SimpleAsyncTaskExecutor();
     @Override
     public SseEmitter aiChatSse(AiMessageReqDTO requestParam) {
@@ -229,6 +232,157 @@ public class AiMessageServiceImpl implements AiMessageService {
     }
     
     @Override
+    public Flux<String> aiChatFlux(AiMessageReqDTO requestParam) {
+        String sessionId = requestParam.getSessionId();
+        if (StrUtil.isBlank(sessionId)) {
+            return Flux.error(new IllegalArgumentException("sessionId不能为空"));
+        }
+
+        return Flux.create(sink -> {
+            String userName = requestParam.getUserName() == null ? "默认" : requestParam.getUserName();
+            Long aiId = requestParam.getAiId();
+            String userMessage = requestParam.getInputMessage();
+            
+            // 内容累积器
+            AIContentAccumulator accumulator = new AIContentAccumulator();
+            
+            asyncTask.submit(() -> {
+                long startTime = System.currentTimeMillis();
+                
+                try {
+                    // 1. 验证AI配置
+                    AiPropertiesDO aiProperties = aiPropertiesService.getById(aiId);
+                    if (aiProperties == null || aiProperties.getDelFlag() == 1 || aiProperties.getIsEnabled() == 0) {
+                        sink.error(new ClientException("AI配置不存在或已禁用"));
+                        return;
+                    }
+                    
+                    // 2. 处理历史消息
+                    List<AiMessageHistoryRespDTO> historyMessages = getConversationHistory(sessionId);
+                    List<RoleContent> historyList = new ArrayList<>();
+                    
+                    if (CollUtil.isNotEmpty(historyMessages)) {
+                        historyList = historyMessages.stream().map(h -> {
+                            String role = h.getMessageType() == 1 ? "user" : "assistant";
+                            return new RoleContent(role, h.getMessageContent());
+                        }).collect(Collectors.toList());
+                    }
+                    // 统一转换为JSON字符串，确保不为null
+                    String historyJson = JSON.toJSONString(historyList);
+
+                    int nextMessageSeq = getNextMessageSeq(sessionId);
+                    
+                    // 3. 保存用户消息到数据库
+                    AiMessage userMsg = new AiMessage();
+                    userMsg.setSessionId(sessionId);
+                    userMsg.setMessageType(1); // 用户消息
+                    userMsg.setMessageContent(userMessage);
+                    userMsg.setMessageSeq(nextMessageSeq);
+                    userMsg.setCreateTime(new Date());
+                    userMsg.setDelFlag(0);
+                    // 直接保存到数据库
+                    aiMessageRepository.save(userMsg);
+                    
+                    // 4. 调用AI接口进行流式传输
+                    String aiResponse = "";
+                    
+                    if ("generalv3.5".equals(aiProperties.getAiType())) {
+                        // 使用星火AI
+                        sparkAIClient.chatStream(
+                                userMessage,
+                                historyJson,
+                                true,
+                                new OutputStream() {
+                                    @Override
+                                    public void write(int b) { /* 不需要实现 */ }
+
+                                    @Override
+                                    public void write(byte[] b, int off, int len) throws IOException {
+                                        try {
+                                            // 发送数据到前端
+                                            String jsonChunk = new String(b, off, len);
+                                            sink.next(jsonChunk);
+
+                                            // 累积内容到字符串
+                                            accumulator.appendChunk(b);
+                                            
+                                        } catch (Exception e) {
+                                            log.error("Flux数据发送失败", e);
+                                            sink.error(e);
+                                        }
+                                    }
+
+                                    @Override
+                                    public void flush() { /* 确保数据发送 */ }
+                                },data -> {
+                                },
+                                aiProperties.getApiKey(),
+                                aiProperties.getAiType()
+                        );
+
+                    } else {
+                        // 其他AI类型的处理逻辑
+                        aiResponse = "暂不支持该AI类型";
+                        sink.next(aiResponse);
+                        accumulator.appendChunk(aiResponse.getBytes());
+                    }
+                    
+                    // 5. 保存AI回复消息
+                    String fullContent = accumulator.getFullContent();
+                    long responseTime = System.currentTimeMillis() - startTime;
+                    
+                    AiMessage aiMsg = new AiMessage();
+                    aiMsg.setSessionId(sessionId);
+                    aiMsg.setMessageType(2); // AI回复
+                    aiMsg.setMessageContent(fullContent);
+                    aiMsg.setMessageSeq(getNextMessageSeq(sessionId));
+                    aiMsg.setResponseTime((int) responseTime);
+                    aiMsg.setCreateTime(new Date());
+                    aiMsg.setDelFlag(0);
+                    AiMessage savedAiMsg = aiMessageRepository.save(aiMsg);
+                    
+                    // 6. 更新会话信息
+                    aiConversationService.updateConversation(sessionId, aiMsg.getMessageSeq(), null);
+
+                     
+                     // 8. 发送完成信号
+                    sink.next("[DONE]");
+                    sink.complete();
+                    
+                } catch (Exception e) {
+                    log.error("AI聊天处理异常", e);
+                    
+                    long responseTime = System.currentTimeMillis() - startTime;
+                    
+                    // 保存错误消息
+                    AiMessage errorMsg = new AiMessage();
+                    errorMsg.setSessionId(sessionId);
+                    errorMsg.setMessageType(2); // AI回复
+                    errorMsg.setMessageContent("抱歉，处理您的请求时出现了错误");
+                    errorMsg.setMessageSeq(getNextMessageSeq(sessionId));
+                    errorMsg.setResponseTime((int) responseTime);
+                    errorMsg.setErrorMessage(e.getMessage());
+                    errorMsg.setCreateTime(new Date());
+                    errorMsg.setDelFlag(0);
+                    aiMessageRepository.save(errorMsg);
+
+                    sink.next("抱歉，处理您的请求时出现了错误");
+                    sink.error(e);
+                }
+            });
+            
+            // 设置取消处理
+            sink.onCancel(() -> {
+                log.warn("Flux连接被取消，sessionId: {}", sessionId);
+            });
+            
+            sink.onDispose(() -> {
+                log.info("Flux连接被释放，sessionId: {}", sessionId);
+            });
+        });
+    }
+    
+    @Override
     public List<AiMessageHistoryRespDTO> getConversationHistory(String sessionId) {
         // 直接从数据库查询历史消息
         List<AiMessage> messages = aiMessageRepository
@@ -244,7 +398,7 @@ public class AiMessageServiceImpl implements AiMessageService {
     }
     
     @Override
-    public IPage<AiMessageHistoryRespDTO> pageHistoryMessages(String username, String sessionId, Integer current, Integer size) {
+    public IPage<AiMessageHistoryRespDTO> pageHistoryMessages(String sessionId, Integer current, Integer size) {
         Pageable pageable = PageRequest.of(current - 1, size);
         org.springframework.data.domain.Page<AiMessage> messagePage;
         

@@ -47,6 +47,9 @@ public enum BaseErrorCode implements IErrorCode {
     SERVICE_ERROR("B000001", "系统执行出错"),
     // ========== 二级宏观错误码 系统执行超时 ==========
     SERVICE_TIMEOUT_ERROR("B000100", "系统执行超时"),
+    
+    // ========== 二级宏观错误码 消息队列相关错误 ==========
+    MESSAGE_SEND_ERROR("B000200", "消息发送失败"),
 
     // ========== 一级宏观错误码 调用第三方服务出错 ==========
     REMOTE_ERROR("C000001", "调用第三方服务出错");

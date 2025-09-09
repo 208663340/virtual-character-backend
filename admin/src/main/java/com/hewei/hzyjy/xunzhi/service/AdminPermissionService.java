@@ -19,7 +19,7 @@ public interface AdminPermissionService extends IService<AdminPermission> {
 
     /**
      * 根据用户ID设置用户为管理员
-     * @param userId 用户ID
+     * @param username 用户ID
      */
-    void setAdminByUserId(Long userId);
+    void setAdminByUserId( String username);
 }

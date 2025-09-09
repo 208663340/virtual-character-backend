@@ -23,7 +23,9 @@ import cn.hutool.core.lang.UUID;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hewei.hzyjy.xunzhi.common.biz.user.UserContext;
 import com.hewei.hzyjy.xunzhi.common.convention.exception.ClientException;
@@ -32,9 +34,11 @@ import com.hewei.hzyjy.xunzhi.common.enums.UserErrorCodeEnum;
 import com.hewei.hzyjy.xunzhi.dao.entity.UserDO;
 import com.hewei.hzyjy.xunzhi.dao.mapper.UserMapper;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserLoginReqDTO;
+import com.hewei.hzyjy.xunzhi.dto.req.user.UserPageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserRegisterReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserUpdateReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.user.UserLoginRespDTO;
+import com.hewei.hzyjy.xunzhi.dto.resp.user.UserPageRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.user.UserRespDTO;
 import com.hewei.hzyjy.xunzhi.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -164,5 +168,57 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             return;
         }
         throw new ClientException("用户Token不存在或用户未登录");
+    }
+
+    @Override
+    public IPage<UserPageRespDTO> pageUsers(UserPageReqDTO requestParam) {
+        // 创建分页对象
+        Page<UserDO> page = new Page<>(requestParam.getCurrent(), requestParam.getSize());
+        
+        // 构建查询条件
+        LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
+                .eq(UserDO::getDelFlag, 0);
+        
+        // 关键词搜索（用户名、真实姓名、邮箱）
+        if (requestParam.getKeyword() != null && !requestParam.getKeyword().trim().isEmpty()) {
+            String keyword = requestParam.getKeyword().trim();
+            queryWrapper.and(wrapper -> wrapper
+                    .like(UserDO::getUsername, keyword)
+                    .or().like(UserDO::getRealName, keyword)
+                    .or().like(UserDO::getMail, keyword)
+            );
+        }
+
+        
+        // 创建时间排序
+        if (requestParam.getCreateTimeSort() != null) {
+            if ("asc".equalsIgnoreCase(requestParam.getCreateTimeSort())) {
+                queryWrapper.orderByAsc(UserDO::getCreateTime);
+            } else {
+                queryWrapper.orderByDesc(UserDO::getCreateTime);
+            }
+        } else {
+            // 默认按创建时间倒序
+            queryWrapper.orderByDesc(UserDO::getCreateTime);
+        }
+        
+        // 执行分页查询
+        IPage<UserDO> userPage = baseMapper.selectPage(page, queryWrapper);
+        
+        // 转换为响应DTO
+        Page<UserPageRespDTO> resultPage = new Page<>(requestParam.getCurrent(), requestParam.getSize());
+        resultPage.setTotal(userPage.getTotal());
+        
+        if (CollUtil.isNotEmpty(userPage.getRecords())) {
+            resultPage.setRecords(userPage.getRecords().stream()
+                    .map(userDO -> {
+                        UserPageRespDTO respDTO = new UserPageRespDTO();
+                        BeanUtils.copyProperties(userDO, respDTO);
+                        return respDTO;
+                    })
+                    .toList());
+        }
+        
+        return resultPage;
     }
 }

@@ -15,13 +15,18 @@ import com.hewei.hzyjy.xunzhi.dto.resp.agent.AgentSessionCreateRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.InterviewAnswerRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.agent.DemeanorEvaluationReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.agent.RadarChartDTO;
+import com.hewei.hzyjy.xunzhi.dto.req.interview.InterviewRecordSaveReqDTO;
+import com.hewei.hzyjy.xunzhi.dto.req.interview.InterviewRecordPageReqDTO;
+import com.hewei.hzyjy.xunzhi.dto.resp.interview.InterviewRecordRespDTO;
 
 import com.hewei.hzyjy.xunzhi.service.AgentConversationService;
 import com.hewei.hzyjy.xunzhi.service.AgentMessageService;
 import com.hewei.hzyjy.xunzhi.service.InterviewQuestionCacheService;
+import com.hewei.hzyjy.xunzhi.service.InterviewRecordService;
 import com.hewei.hzyjy.xunzhi.common.util.SaTokenUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -35,6 +40,7 @@ import java.util.Map;
  * @author nageoffer
  * @date 2023/9/27
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/xunzhi/v1/agents")
 @RequiredArgsConstructor
@@ -44,6 +50,7 @@ public class AgentController {
     private final AgentMessageService agentMessageService;
     private final AgentConversationService agentConversationService;
     private final InterviewQuestionCacheService interviewQuestionCacheService;
+    private final InterviewRecordService interviewRecordService;
 
 
     /**
@@ -109,7 +116,7 @@ public class AgentController {
             HttpServletRequest request) {
         // 从token中获取用户名
         String username = saTokenUtil.getUsernameFromRequest(request);
-        return Results.success(agentMessageService.pageHistoryMessages(username, sessionId, current, size));
+        return Results.success(agentMessageService.pageHistoryMessages(sessionId, current, size));
     }
 
     /**
@@ -148,7 +155,7 @@ public class AgentController {
     /**
      * 回答面试题接口
      */
-    @PostMapping("/interview/answer")
+    @PostMapping("/sessions/{sessionId}/interview/answer")
     public Result<InterviewAnswerRespDTO> answerInterviewQuestion(
             @RequestParam("questionNumber") String questionNumber,
             @RequestParam(value = "answerContent", required = false) String answerContent,
@@ -168,26 +175,24 @@ public class AgentController {
         requestParam.setSessionId(sessionId);
         requestParam.setAgentId(agentId);
         
-        InterviewAnswerRespDTO result = agentMessageService.answerInterviewQuestion(username, requestParam);
+        InterviewAnswerRespDTO result = agentMessageService.answerInterviewQuestion(sessionId, requestParam);
          return Results.success(result);
      }
      
      /**
       * 获取用户面试题列表
       */
-    @GetMapping("/interview/questions")
-    public Result<Map<String, String>> getUserInterviewQuestions(
-            @RequestParam(required = false) String sessionId,
+    @GetMapping("/sessions/{sessionId}/interview/questions")
+    public Result<Map<String, String>> getSessionInterviewQuestions(
+            @PathVariable String sessionId,
             HttpServletRequest request) {
-        // 从token中获取用户名
-        String username = saTokenUtil.getUsernameFromRequest(request);
          
-        Map<String, String> questions = interviewQuestionCacheService.getUserInterviewQuestions(username);
+        Map<String, String> questions = interviewQuestionCacheService.getSessionInterviewQuestions(sessionId);
         
-        // 如果缓存中没有数据且提供了sessionId，尝试从数据库加载
-        if ((questions == null || questions.isEmpty()) && sessionId != null) {
-            interviewQuestionCacheService.loadInterviewQuestionsFromDatabase(sessionId, username);
-            questions = interviewQuestionCacheService.getUserInterviewQuestions(username);
+        // 如果缓存中没有数据，尝试从数据库加载
+        if (questions == null || questions.isEmpty()) {
+            interviewQuestionCacheService.loadInterviewQuestionsFromDatabase(sessionId);
+            questions = interviewQuestionCacheService.getSessionInterviewQuestions(sessionId);
         }
         
         return Results.success(questions);
@@ -196,31 +201,29 @@ public class AgentController {
      /**
       * 获取用户当前总分
       */
-     @GetMapping("/interview/score")
-     public Result<Integer> getUserTotalScore(HttpServletRequest request) {
-         // 从token中获取用户名
-         String username = saTokenUtil.getUsernameFromRequest(request);
+     @GetMapping("/sessions/{sessionId}/interview/score")
+     public Result<Integer> getSessionTotalScore(
+             @PathVariable String sessionId,
+             HttpServletRequest request) {
          
-         Integer totalScore = interviewQuestionCacheService.getUserTotalScore(username);
+         Integer totalScore = interviewQuestionCacheService.getSessionTotalScore(sessionId);
          return Results.success(totalScore);
      }
      
      /**
       * 获取用户面试建议列表
       */
-     @GetMapping("/interview/suggestions")
-     public Result<Map<String, String>> getUserInterviewSuggestions(
-             @RequestParam(required = false) String sessionId,
+     @GetMapping("/sessions/{sessionId}/interview/suggestions")
+     public Result<Map<String, String>> getSessionInterviewSuggestions(
+             @PathVariable String sessionId,
              HttpServletRequest request) {
-         // 从token中获取用户名
-         String username = saTokenUtil.getUsernameFromRequest(request);
          
-         Map<String, String> suggestions = interviewQuestionCacheService.getUserInterviewSuggestions(username);
+         Map<String, String> suggestions = interviewQuestionCacheService.getSessionInterviewSuggestions(sessionId);
          
-         // 如果缓存中没有数据且提供了sessionId，尝试从数据库加载
-         if ((suggestions == null || suggestions.isEmpty()) && sessionId != null) {
-             interviewQuestionCacheService.loadInterviewSuggestionsFromDatabase(sessionId, username);
-             suggestions = interviewQuestionCacheService.getUserInterviewSuggestions(username);
+         // 如果缓存中没有数据，尝试从数据库加载
+         if (suggestions == null || suggestions.isEmpty()) {
+             interviewQuestionCacheService.loadInterviewSuggestionsFromDatabase(sessionId);
+             suggestions = interviewQuestionCacheService.getSessionInterviewSuggestions(sessionId);
          }
          
          return Results.success(suggestions);
@@ -229,19 +232,17 @@ public class AgentController {
      /**
       * 获取用户简历评分
       */
-     @GetMapping("/resume/score")
-     public Result<Integer> getUserResumeScore(
-             @RequestParam(required = false) String sessionId,
+     @GetMapping("/sessions/{sessionId}/resume/score")
+     public Result<Integer> getSessionResumeScore(
+             @PathVariable String sessionId,
              HttpServletRequest request) {
-         // 从token中获取用户名
-         String username = saTokenUtil.getUsernameFromRequest(request);
          
-         Integer resumeScore = interviewQuestionCacheService.getUserResumeScore(username);
+         Integer resumeScore = interviewQuestionCacheService.getSessionResumeScore(sessionId);
          
-         // 如果缓存中没有数据且提供了sessionId，尝试从数据库加载
-         if (resumeScore == null && sessionId != null) {
-             interviewQuestionCacheService.loadResumeScoreFromDatabase(sessionId, username);
-             resumeScore = interviewQuestionCacheService.getUserResumeScore(username);
+         // 如果缓存中没有数据，尝试从数据库加载
+         if (resumeScore == null) {
+             interviewQuestionCacheService.loadResumeScoreFromDatabase(sessionId);
+             resumeScore = interviewQuestionCacheService.getSessionResumeScore(sessionId);
          }
          
          return Results.success(resumeScore);
@@ -250,19 +251,28 @@ public class AgentController {
      /**
       * 获取雷达图数据
       */
-     @GetMapping("/radar-chart")
-     public Result<RadarChartDTO> getRadarChartData(HttpServletRequest request) {
-         // 从token中获取用户名
-         String username = saTokenUtil.getUsernameFromRequest(request);
+     @GetMapping("/sessions/{sessionId}/radar-chart")
+     public Result<RadarChartDTO> getRadarChartData(
+             @PathVariable String sessionId,
+             HttpServletRequest request) {
          
-         RadarChartDTO radarChart = interviewQuestionCacheService.getRadarChartData(username);
+         RadarChartDTO radarChart = interviewQuestionCacheService.getRadarChartData(sessionId);
+         
+         // 同时存储面试记录
+         try {
+             interviewRecordService.saveInterviewRecordFromRedis(sessionId);
+         } catch (Exception e) {
+             // 记录日志但不影响雷达图数据的返回
+             log.error("保存面试记录失败，sessionId: {}, 错误: {}", sessionId, e.getMessage(), e);
+         }
+         
          return Results.success(radarChart);
      }
      
      /**
        * 神态评分接口
        */
-     @PostMapping("/demeanor-evaluation")
+     @PostMapping("/sessions/{sessionId}/demeanor-evaluation")
      public Result<String> evaluateDemeanor(
              @RequestPart("userPhoto") MultipartFile userPhoto,
              @RequestParam("agentId") Long agentId,
@@ -279,8 +289,60 @@ public class AgentController {
               reqDTO.setUserPhoto(userPhoto);
               
               // 调用智能体进行神态评分
-              String result = agentMessageService.evaluateDemeanor(username, reqDTO);
+              String result = agentMessageService.evaluateDemeanor(reqDTO);
               return Results.success(result);
      }
+
+     /**
+      * 保存面试记录
+      */
+     @PostMapping("/interview/record")
+     public Result<Void> saveInterviewRecord(
+             @RequestBody InterviewRecordSaveReqDTO requestParam,
+             HttpServletRequest request) {
+         // 从token中获取用户名
+         String username = saTokenUtil.getUsernameFromRequest(request);
+         
+         // 设置用户名
+         requestParam.setUsername(username);
+         
+         interviewRecordService.saveInterviewRecord(requestParam.getSessionId(), requestParam);
+         return Results.success();
+     }
+
+     /**
+      * 分页查询面试记录
+      */
+     @GetMapping("/interview/records")
+     public Result<IPage<InterviewRecordRespDTO>> pageInterviewRecords(
+             InterviewRecordPageReqDTO requestParam,
+             HttpServletRequest request) {
+         // 从token中获取用户名
+         String username = saTokenUtil.getUsernameFromRequest(request);
+
+
+         return Results.success(interviewRecordService.pageInterviewRecords(username,requestParam));
+     }
+
+     /**
+      * 根据会话ID获取面试记录
+      */
+     @GetMapping("/interview/record/{sessionId}")
+     public Result<InterviewRecordRespDTO> getInterviewRecordBySessionId(@PathVariable String sessionId) {
+         return Results.success(interviewRecordService.getBySessionId(sessionId));
+     }
+
+
+     /**
+      * 从Redis保存面试记录
+      */
+     @PostMapping("/interview/record/save-from-redis/{sessionId}")
+     public Result<Void> saveInterviewRecordFromRedis(
+             @PathVariable String sessionId,
+             HttpServletRequest request) {
+         interviewRecordService.saveInterviewRecordFromRedis(sessionId);
+         return Results.success();
+     }
+
 
 }

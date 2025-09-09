@@ -77,7 +77,7 @@ public class AgentMessageServiceImpl implements AgentMessageService{
     }
 
     @Override
-    public IPage<AgentMessageHistoryRespDTO> pageHistoryMessages(String username, String sessionId, Integer current, Integer size) {
+    public IPage<AgentMessageHistoryRespDTO> pageHistoryMessages(String sessionId, Integer current, Integer size) {
         Pageable pageable = PageRequest.of(current - 1, size);
         org.springframework.data.domain.Page<AgentMessage> messagePage;
         
@@ -381,11 +381,11 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                                     List<String> questions = (List<String>) questionsObj;
                                     if (!questions.isEmpty()) {
                                         // 缓存面试题到Redis
-                                        interviewQuestionCacheService.cacheInterviewQuestions(reqDTO.getUserName(), questions);
-                                        log.info("面试题缓存成功，用户: {}, 题目数量: {}", reqDTO.getUserName(), questions.size());
+                                        interviewQuestionCacheService.cacheInterviewQuestions(reqDTO.getSessionId(), questions);
+                                        log.info("面试题缓存成功，会话: {}, 题目数量: {}", reqDTO.getSessionId(), questions.size());
 
                                         // 从缓存获取Map格式的面试题并设置到响应对象
-                                        Map<String, String> questionMap = interviewQuestionCacheService.getUserInterviewQuestions(reqDTO.getUserName());
+                                        Map<String, String> questionMap = interviewQuestionCacheService.getSessionInterviewQuestions(reqDTO.getSessionId());
                                         response.setQuestions(questionMap);
                                         response.setQuestionCount(questions.size());
                                     }
@@ -416,16 +416,35 @@ public class AgentMessageServiceImpl implements AgentMessageService{
 
                                 if (suggestions != null && !suggestions.isEmpty()) {
                                     // 缓存面试建议到Redis
-                                    interviewQuestionCacheService.cacheInterviewSuggestions(reqDTO.getUserName(), suggestions);
-                                    log.info("面试建议缓存成功，用户: {}, 建议数量: {}", reqDTO.getUserName(), suggestions.size());
+                                    interviewQuestionCacheService.cacheInterviewSuggestions(reqDTO.getSessionId(), suggestions);
+                                    log.info("面试建议缓存成功，会话: {}, 建议数量: {}", reqDTO.getSessionId(), suggestions.size());
 
                                     // 从缓存获取Map格式的面试建议并设置到响应对象
-                                    Map<String, String> suggestionMap = interviewQuestionCacheService.getUserInterviewSuggestions(reqDTO.getUserName());
+                                    Map<String, String> suggestionMap = interviewQuestionCacheService.getSessionInterviewSuggestions(reqDTO.getSessionId());
                                     response.setSuggestions(suggestionMap);
                                     response.setSuggestionCount(suggestions.size());
                                 } else {
                                     log.warn("响应中不包含有效的面试建议字段");
                                 }
+
+                            // 缓存面试方向
+                            if (responseMap.containsKey("type")) {
+                                Object typeObj = responseMap.get("type");
+                                log.info("找到type字段，类型: {}, 值: {}", typeObj.getClass().getSimpleName(), typeObj);
+                                if (typeObj instanceof String) {
+                                    String interviewType = (String) typeObj;
+                                    if (StrUtil.isNotBlank(interviewType)) {
+                                        // 缓存面试方向到Redis
+                                         interviewQuestionCacheService.cacheInterviewDirection(reqDTO.getSessionId(), interviewType);
+                                         log.info("面试方向缓存成功，会话: {}, 方向: {}", reqDTO.getSessionId(), interviewType);
+
+                                        // 设置到响应对象
+                                        response.setInterviewType(interviewType);
+                                    }
+                                }
+                            } else {
+                                log.warn("响应中不包含type字段");
+                            }
 
                             // 缓存简历评分
                             if (responseMap.containsKey("resumeScore")) {
@@ -445,8 +464,8 @@ public class AgentMessageServiceImpl implements AgentMessageService{
 
                                      if (resumeScore != null && resumeScore >= 0 && resumeScore <= 100) {
                                          // 缓存简历评分到Redis
-                                         interviewQuestionCacheService.cacheResumeScore(reqDTO.getUserName(), resumeScore);
-                                         log.info("简历评分缓存成功，用户: {}, 评分: {}", reqDTO.getUserName(), resumeScore);
+                                         interviewQuestionCacheService.cacheResumeScore(reqDTO.getSessionId(), resumeScore);
+                                         log.info("简历评分缓存成功，会话: {}, 评分: {}", reqDTO.getSessionId(), resumeScore);
 
                                          // 设置到响应对象
                                          response.setResumeScore(resumeScore);
@@ -457,10 +476,10 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                                  log.warn("响应中不包含score字段");
                              }
 
-                            // 重置用户分数（只有在有面试题、建议或简历评分时才重置）
-                            if (responseMap.containsKey("questions") || responseMap.containsKey("sugest") || responseMap.containsKey("suggestions") || responseMap.containsKey("score")) {
-                                interviewQuestionCacheService.resetUserScore(reqDTO.getUserName());
-                                log.info("用户分数已重置，用户: {}", reqDTO.getUserName());
+                            // 重置用户分数（只有在有面试题、建议、简历评分或面试方向时才重置）
+                            if (responseMap.containsKey("questions") || responseMap.containsKey("sugest") || responseMap.containsKey("suggestions") || responseMap.containsKey("score") || responseMap.containsKey("type")) {
+                                interviewQuestionCacheService.resetSessionScore(reqDTO.getSessionId());
+                                log.info("会话分数已重置，会话: {}", reqDTO.getSessionId());
                             }
                             } else {
                                 log.warn("解析AI响应失败，responseMap为null");
@@ -469,7 +488,7 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                             log.warn("提取的content内容为空");
                         }
                     } catch (Exception cacheException) {
-                        log.error("缓存面试题、建议和简历评分失败，用户: {}, 错误: {}", reqDTO.getUserName(), cacheException.getMessage());
+                        log.error("缓存面试题、建议和简历评分失败，会话: {}, 错误: {}", reqDTO.getSessionId(), cacheException.getMessage());
                     }
 
                 } catch (Exception e) {
@@ -505,13 +524,13 @@ public class AgentMessageServiceImpl implements AgentMessageService{
     }
     
     @Override
-    public InterviewAnswerRespDTO answerInterviewQuestion(String username, InterviewAnswerReqDTO requestParam) {
+    public InterviewAnswerRespDTO answerInterviewQuestion(String sessionId, InterviewAnswerReqDTO requestParam) {
         InterviewAnswerRespDTO response = new InterviewAnswerRespDTO();
         response.setQuestionNumber(requestParam.getQuestionNumber());
         
         try {
             // 1. 从缓存中获取题目内容
-            String questionContent = interviewQuestionCacheService.getQuestionByNumber(username, requestParam.getQuestionNumber());
+            String questionContent = interviewQuestionCacheService.getQuestionByNumber(sessionId, requestParam.getQuestionNumber());
             if (StrUtil.isBlank(questionContent)) {
                 response.setErrorMessage("题目不存在或已过期，请重新抽取面试题");
                 return response;
@@ -524,23 +543,23 @@ public class AgentMessageServiceImpl implements AgentMessageService{
             // 如果提供了录音文件，则使用语音转文字
             if (requestParam.getAudioFile() != null && !requestParam.getAudioFile().isEmpty()) {
                 try {
-                    log.info("开始处理录音文件，用户: {}, 题号: {}, 文件大小: {} bytes", 
-                            username, requestParam.getQuestionNumber(), requestParam.getAudioFile().getSize());
+                    log.info("开始处理录音文件，会话: {}, 题号: {}, 文件大小: {} bytes", 
+                            sessionId, requestParam.getQuestionNumber(), requestParam.getAudioFile().getSize());
                     
                     // 调用讯飞语音转文字服务
                     String transcribedText = audioTranscriptionService.transcribeAudio(requestParam.getAudioFile());
                     
                     if (StrUtil.isNotBlank(transcribedText)) {
                         answerContent = transcribedText;
-                        log.info("语音转文字成功，用户: {}, 题号: {}, 转换结果: {}", 
-                                username, requestParam.getQuestionNumber(), transcribedText);
+                        log.info("语音转文字成功，会话: {}, 题号: {}, 转换结果: {}", 
+                                sessionId, requestParam.getQuestionNumber(), transcribedText);
                     } else {
                         response.setErrorMessage("语音转文字失败，请检查录音文件格式或重新录制");
                         return response;
                     }
                 } catch (Exception e) {
-                    log.error("语音转文字处理失败，用户: {}, 题号: {}, 错误: {}", 
-                            username, requestParam.getQuestionNumber(), e.getMessage(), e);
+                    log.error("语音转文字处理失败，会话: {}, 题号: {}, 错误: {}", 
+                            sessionId, requestParam.getQuestionNumber(), e.getMessage(), e);
                     response.setErrorMessage("语音转文字处理失败: " + e.getMessage());
                     return response;
                 }
@@ -625,7 +644,7 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                             response.setScore(score);
                             
                             // 7. 累加分数到Redis
-                            Integer totalScore = interviewQuestionCacheService.addUserScore(username, score);
+                            Integer totalScore = interviewQuestionCacheService.addSessionScore(sessionId, score);
                             response.setTotalScore(totalScore);
                             
                             // 8. 设置反馈内容
@@ -634,7 +653,7 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                             }
                             
                             response.setIsSuccess(true);
-                            log.info("用户 {} 回答题目 {} 评分成功，得分: {}, 总分: {}", username, requestParam.getQuestionNumber(), score, totalScore);
+                            log.info("会话 {} 回答题目 {} 评分成功，得分: {}, 总分: {}", sessionId, requestParam.getQuestionNumber(), score, totalScore);
                         } else {
                             response.setErrorMessage("AI返回的分数格式不正确");
                             log.warn("AI返回的分数超出范围: {}", score);
@@ -654,14 +673,15 @@ public class AgentMessageServiceImpl implements AgentMessageService{
             
         } catch (Exception e) {
             response.setErrorMessage("评分过程中发生错误: " + e.getMessage());
-            log.error("面试题回答评分失败，用户: {}, 题号: {}, 错误: {}", username, requestParam.getQuestionNumber(), e.getMessage(), e);
+            log.error("面试题回答评分失败，会话: {}, 题号: {}, 错误: {}", sessionId, requestParam.getQuestionNumber(), e.getMessage(), e);
         }
         
         return response;
     }
     
     @Override
-    public String evaluateDemeanor(String username, DemeanorEvaluationReqDTO reqDTO) {
+    public String evaluateDemeanor(DemeanorEvaluationReqDTO reqDTO) {
+        String sessionId = null;
         try {
             // 1. 上传图片到讯飞服务器获取URL
             String imageUrl = null;
@@ -673,12 +693,12 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                     if (agentProperties == null) {
                         throw new RuntimeException("智能体配置不存在");
                     }
-                    
+
                     // 上传图片到讯飞服务器获取URL
                     imageUrl = xingChenAIClient.uploadFile(
-                        reqDTO.getUserPhoto(), 
-                        agentProperties.getApiKey(),
-                        agentProperties.getApiSecret()
+                            reqDTO.getUserPhoto(),
+                            agentProperties.getApiKey(),
+                            agentProperties.getApiSecret()
                     );
                     log.info("图片上传成功，URL: {}", imageUrl);
                 } catch (Exception e) {
@@ -686,102 +706,103 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                     throw new ClientException("FILE_UPLOAD_FAILED", AgentErrorCodeEnum.AGENT_SAVE_ERROR);
                 }
             }
-            
+
             if (imageUrl == null) {
                 throw new ClientException("USER_PHOTO_NOT_FOUND", AgentErrorCodeEnum.AGENT_SAVE_ERROR);
             }
-            
+
             // 2. 构建神态评分的提示词
             String promptBuilder = "请对这张照片进行神态评分，分析用户的表情和神态，返回以下四个参数的评分（每个参数范围0-100）";
-            
+
             // 3. 调用AI接口进行神态评分
             Long agentId = reqDTO.getAgentId() != null ? reqDTO.getAgentId() : 1345345L;
             AgentPropertiesDO agentProperties = agentPropertiesLoader.getAgentPropertiesMap().get(agentId);
             if (agentProperties == null) {
-                throw new ClientException("AGENT_CONFIG_NOT_FOUND",AgentErrorCodeEnum.AGENT_SAVE_ERROR);
+                throw new ClientException("AGENT_CONFIG_NOT_FOUND", AgentErrorCodeEnum.AGENT_SAVE_ERROR);
             }
-            
+
             // 4. 使用现有的XingChenAIClient进行同步调用
-             StringBuilder aiResponse = new StringBuilder();
-             xingChenAIClient.chat(
-                 promptBuilder,
-                 reqDTO.getSessionId() != null ? reqDTO.getSessionId() : "demeanor_" + System.currentTimeMillis(),
-                 "{}", // 空的历史记录
-                 false, // 非流式
-                 new OutputStream() {
-                     @Override
-                     public void write(int b) { /* 不需要实现 */ }
-                     
-                     @Override
-                     public void write(byte[] b, int off, int len) throws IOException {
-                         aiResponse.append(new String(b, off, len));
-                     }
-                     
-                     @Override
-                     public void flush() { /* 确保数据发送 */ }
-                 },
-                 data -> {},
-                 agentProperties.getApiKey(),
-                 agentProperties.getApiSecret(),
-                 agentProperties.getApiFlowId(),
-                 imageUrl // 传递图片URL
-             );
-            
+            StringBuilder aiResponse = new StringBuilder();
+            xingChenAIClient.chat(
+                    promptBuilder,
+                    reqDTO.getSessionId() != null ? reqDTO.getSessionId() : "demeanor_" + System.currentTimeMillis(),
+                    "{}", // 空的历史记录
+                    false, // 非流式
+                    new OutputStream() {
+                        @Override
+                        public void write(int b) { /* 不需要实现 */ }
+
+                        @Override
+                        public void write(byte[] b, int off, int len) throws IOException {
+                            aiResponse.append(new String(b, off, len));
+                        }
+
+                        @Override
+                        public void flush() { /* 确保数据发送 */ }
+                    },
+                    data -> {
+                    },
+                    agentProperties.getApiKey(),
+                    agentProperties.getApiSecret(),
+                    agentProperties.getApiFlowId(),
+                    imageUrl // 传递图片URL
+            );
+
             // 5. 解析AI响应获取评分数据
             String aiResponseStr = aiResponse.toString();
             log.info("AI神态评分原始响应: {}", aiResponseStr);
-            
+            sessionId = reqDTO.getSessionId();
             try {
                 JSONObject jsonObject = JSON.parseObject(aiResponseStr);
                 Map<String, Object> responseMap = jsonObject.toJavaObject(Map.class);
                 log.info("解析后的响应Map: {}", responseMap);
-                
+
                 if (responseMap != null) {
                     // 从choices数组中提取content内容
                     String contentStr = extractContentFromResponse(responseMap);
                     log.info("提取的content内容: {}", contentStr);
-                    
+
                     if (contentStr != null) {
                         // 解析content中的JSON数据
                         JSONObject contentJson = JSON.parseObject(contentStr);
                         Map<String, Object> contentMap = contentJson.toJavaObject(Map.class);
                         log.info("解析后的content Map: {}", contentMap);
-                        
+
                         // 解析四个评分参数
                         log.info("开始解析各个评分字段...");
                         Integer panicLevel = parseScoreFromResponse(contentMap, "panicLevel");
                         log.info("panicLevel解析结果: {}", panicLevel);
-                        
+
                         Integer seriousnessLevel = parseScoreFromResponse(contentMap, "seriousnessLevel");
                         log.info("seriousnessLevel解析结果: {}", seriousnessLevel);
-                        
+
                         Integer emoticonHandling = parseScoreFromResponse(contentMap, "emoticonHandling");
                         log.info("emoticonHandling解析结果: {}", emoticonHandling);
-                        
+
                         Integer compositeScore = parseScoreFromResponse(contentMap, "compositeScore");
                         log.info("compositeScore解析结果: {}", compositeScore);
-                    
+
                         // 验证评分范围
-                        if (panicLevel != null && seriousnessLevel != null && 
-                            emoticonHandling != null && compositeScore != null) {
-                            
+                        if (panicLevel != null && seriousnessLevel != null &&
+                                emoticonHandling != null && compositeScore != null) {
+
                             log.info("所有评分字段解析成功，开始缓存数据...");
-                            
+
                             // 6. 缓存神态评分详细数据到Redis
                             interviewQuestionCacheService.cacheDemeanorScoreDetails(
-                                username, panicLevel, seriousnessLevel, emoticonHandling, compositeScore
+                                    sessionId, panicLevel, seriousnessLevel, emoticonHandling, compositeScore
                             );
-                            
+
                             // 7. 同时更新神态管理评分（用于综合雷达图）
-                            interviewQuestionCacheService.cacheDemeanorScore(username, compositeScore);
-                            
-                            log.info("用户 {} 神态评分成功，慌乱度: {}, 严肃程度: {}, 表情处理: {}, 综合得分: {}", 
-                                username, panicLevel, seriousnessLevel, emoticonHandling, compositeScore);
-                            
+                            interviewQuestionCacheService.cacheDemeanorScore(sessionId, compositeScore);
+
+                            log.info("会话 {} 神态评分成功，慌乱度: {}, 严肃程度: {}, 表情处理: {}, 综合得分: {}",
+                                    sessionId, panicLevel, seriousnessLevel, emoticonHandling, compositeScore);
+
                             return "神态评分完成";
                         } else {
-                            log.error("评分字段验证失败 - panicLevel: {}, seriousnessLevel: {}, emoticonHandling: {}, compositeScore: {}", 
-                                panicLevel, seriousnessLevel, emoticonHandling, compositeScore);
+                            log.error("评分字段验证失败 - panicLevel: {}, seriousnessLevel: {}, emoticonHandling: {}, compositeScore: {}",
+                                    panicLevel, seriousnessLevel, emoticonHandling, compositeScore);
                             throw new ClientException("AI_RESPONSE_INVALID", AgentErrorCodeEnum.AGENT_SAVE_ERROR);
                         }
                     } else {
@@ -796,9 +817,9 @@ public class AgentMessageServiceImpl implements AgentMessageService{
                 log.error("解析AI神态评分响应失败，原始响应: {}, 错误: {}", aiResponseStr, parseException.getMessage(), parseException);
                 throw new ClientException("AI_RESPONSE_PARSE_ERROR", AgentErrorCodeEnum.AGENT_SAVE_ERROR);
             }
-            
+
         } catch (Exception e) {
-            log.error("神态评分失败，用户: {}, 错误: {}", username, e.getMessage(), e);
+            log.error("神态评分失败，会话: {}, 错误: {}", sessionId, e.getMessage(), e);
             throw new ClientException("DEMEANOR_EVALUATION_FAILED", AgentErrorCodeEnum.AGENT_SAVE_ERROR);
         }
     }

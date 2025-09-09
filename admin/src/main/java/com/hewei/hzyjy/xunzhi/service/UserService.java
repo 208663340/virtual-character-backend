@@ -17,12 +17,15 @@
 
 package com.hewei.hzyjy.xunzhi.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.hewei.hzyjy.xunzhi.dao.entity.UserDO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserLoginReqDTO;
+import com.hewei.hzyjy.xunzhi.dto.req.user.UserPageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserRegisterReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.req.user.UserUpdateReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.user.UserLoginRespDTO;
+import com.hewei.hzyjy.xunzhi.dto.resp.user.UserPageRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.user.UserRespDTO;
 
 /**
@@ -84,4 +87,6 @@ public interface UserService extends IService<UserDO> {
      * @param token    用户登录 Token
      */
     void logout(String username, String token);
+
+    IPage<UserPageRespDTO> pageUsers(UserPageReqDTO requestParam);
 }

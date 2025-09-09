@@ -32,7 +32,7 @@ public interface AgentMessageService  {
     /**
      * 分页查询历史消息
      */
-    IPage<AgentMessageHistoryRespDTO> pageHistoryMessages(String username, String sessionId, Integer current, Integer size);
+    IPage<AgentMessageHistoryRespDTO> pageHistoryMessages(String sessionId, Integer current, Integer size);
 
     /**
      * 面试题抽取接口
@@ -42,14 +42,13 @@ public interface AgentMessageService  {
     /**
      * 回答面试题并获取评分
      */
-    InterviewAnswerRespDTO answerInterviewQuestion(String username, InterviewAnswerReqDTO requestParam);
+    InterviewAnswerRespDTO answerInterviewQuestion(String sessionId, InterviewAnswerReqDTO requestParam);
     
     /**
      * 神态评分
-     * @param username 用户名
-     * @param reqDTO 神态评估请求DTO
+     * @param demeanorEvaluation 图片base64编码
      * @return 评分结果
      */
-    String evaluateDemeanor(String username, DemeanorEvaluationReqDTO reqDTO);
+    String evaluateDemeanor(DemeanorEvaluationReqDTO demeanorEvaluation);
 
 }

@@ -1,5 +1,6 @@
 package com.hewei.hzyjy.xunzhi.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -34,22 +35,29 @@ public class AdminPermissionServiceImpl extends ServiceImpl<AdminPermissionMappe
     }
 
     @Override
-    public void setAdminByUserId(Long userId) {
-        UserDO user = userMapper.selectById(userId);
+    public void setAdminByUserId(String username) {
+        // 使用当前登录用户名查询用户信息验证用户存在
+        LambdaQueryWrapper<UserDO> userQueryWrapper = Wrappers.lambdaQuery(UserDO.class)
+                .eq(UserDO::getUsername, username)
+                .eq(UserDO::getDelFlag, 0);
+        UserDO user = userMapper.selectOne(userQueryWrapper);
         if (user == null) {
             throw new ServiceException("用户不存在");
         }
 
-        AdminPermission adminPermission = getOne(Wrappers.lambdaQuery(AdminPermission.class).eq(AdminPermission::getUserId, userId));
-        if (adminPermission == null) {
-            adminPermission = new AdminPermission();
-            adminPermission.setUserId(userId);
+        // 查询或创建AdminPermission记录
+        AdminPermission existingPermission = getOne(Wrappers.lambdaQuery(AdminPermission.class).eq(AdminPermission::getUserId, user.getId()));
+        if (existingPermission == null) {
+            // 创建新的权限记录
+            AdminPermission adminPermission = new AdminPermission();
+            adminPermission.setUserId(user.getId());
             adminPermission.setUsername(user.getUsername());
-            adminPermission.setIsAdmin(1); // 1 for admin
+            adminPermission.setIsAdmin(1);
             save(adminPermission);
         } else {
-            adminPermission.setIsAdmin(1);
-            updateById(adminPermission);
+            // 更新现有权限记录
+            existingPermission.setIsAdmin(1);
+            updateById(existingPermission);
         }
     }
 }

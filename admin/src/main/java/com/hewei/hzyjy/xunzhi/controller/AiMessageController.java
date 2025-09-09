@@ -1,6 +1,7 @@
 package com.hewei.hzyjy.xunzhi.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.hewei.hzyjy.xunzhi.annotation.PreventDuplicateSubmit;
 import com.hewei.hzyjy.xunzhi.common.convention.result.Result;
 import com.hewei.hzyjy.xunzhi.common.convention.result.Results;
 import com.hewei.hzyjy.xunzhi.dto.req.ai.AiMessageReqDTO;
@@ -11,8 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -29,17 +29,26 @@ public class AiMessageController {
     private final SaTokenUtil saTokenUtil;
     
     /**
-     * AI聊天SSE接口
+     * AI聊天Flux接口
      */
+    @PreventDuplicateSubmit(
+        prefix = "ai_chat",
+        expireTime = 30,
+        waitTime = 0,
+        message = "请勿重复发送消息，请等待当前消息处理完成",
+        userLevel = true,
+        sessionLevel = true,
+        messageSeqLevel = true
+    )
     @PostMapping(value = "/sessions/{sessionId}/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chat(@PathVariable String sessionId, @RequestBody AiMessageReqDTO requestParam, HttpServletRequest request) {
+    public Flux<String> chat(@PathVariable String sessionId, @RequestBody AiMessageReqDTO requestParam, HttpServletRequest request) {
         // 从token中获取用户名
         String username = saTokenUtil.getUsernameFromRequest(request);
         if (username != null) {
             requestParam.setUserName(username);
         }
         requestParam.setSessionId(sessionId);
-        return aiMessageService.aiChatSse(requestParam);
+        return aiMessageService.aiChatFlux(requestParam);
     }
     
     /**
@@ -62,7 +71,7 @@ public class AiMessageController {
             HttpServletRequest request) {
         // 从token中获取用户名
         String username = saTokenUtil.getUsernameFromRequest(request);
-        IPage<AiMessageHistoryRespDTO> result = aiMessageService.pageHistoryMessages(username, sessionId, current, size);
+        IPage<AiMessageHistoryRespDTO> result = aiMessageService.pageHistoryMessages(sessionId, current, size);
         return Results.success(result);
     }
 }
