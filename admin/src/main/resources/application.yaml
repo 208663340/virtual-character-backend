@@ -24,10 +24,13 @@ spring:
     redis:
       host: 127.0.0.1
       port: 6379
-
-          initial-interval: 1000
-          max-attempts: 3
-          multiplier: 2
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+        shutdown-timeout: 100ms
+      timeout: 10000ms
   # Spring配置
   # 定时任务配置
   task:
