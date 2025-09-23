@@ -50,6 +50,17 @@ xunfei:
     api-key: e8565c438f59b301616e0498a86ad95d
     api-secret: OGZkZGQ5ZDY0Yzc4MTllZWI3ZmU2MDU4
 
+# 豆包大模型配置
+doubao:
+  api-key: 59378d07-9d8b-41fc-9e48-05fb806c2ac9
+  secret-key: WkdWa1ltUTJZMlZsWTJFNU5ETXhZbUl3TXpCaVltTTVaamM1TWpWbVltSQ==
+  region: cn-beijing  # 地域，固定为 cn-beijing
+  model-id: doubao-lite-32k-character-250228  # 模型名称（含版本）
+  base-url: https://ark.cn-beijing.volces.com/api/v3  # API 端点
+  timeout: 1800  # 超时时间（秒）
+  connect-timeout: 20  # 连接超时（秒）
+  retry-times: 2  # 重试次数
+
 xunzhi-agent:
   flow-limit:
     enable: true

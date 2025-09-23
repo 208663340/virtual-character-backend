@@ -23,6 +23,7 @@ import com.hewei.hzyjy.xunzhi.service.UserService;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AIContentAccumulator;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.RoleContent;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.SparkAIClient;
+import com.hewei.hzyjy.xunzhi.toolkit.doubao.DoubaoStreamClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -57,6 +58,7 @@ public class AiMessageServiceImpl implements AiMessageService {
     // 移除AgentPropertiesService依赖，不再需要
     private final UserService userService;
     private final SparkAIClient sparkAIClient;
+    private final DoubaoStreamClient doubaoStreamClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final SseConfig sseConfig;
 
@@ -118,6 +120,44 @@ public class AiMessageServiceImpl implements AiMessageService {
                 if ("generalv3.5".equals(aiProperties.getAiType())) {
                     // 使用星火AI
                     sparkAIClient.chatStream(
+                            userMessage,
+                            historyJson,
+                            true,
+                            new OutputStream() {
+                                @Override
+                                public void write(int b) { /* 不需要实现 */ }
+
+                                @Override
+                                public void write(byte[] b, int off, int len) throws IOException {
+                                    try {
+                                        // 发送数据到前端
+                                        String jsonChunk = new String(b, off, len);
+                                        emitter.send(SseEmitter.event().data(jsonChunk));
+
+                                        // 累积内容到字符串
+                                        accumulator.appendChunk(b);
+                                        
+                                        // 发送心跳保持连接活跃
+                                        if (sseConfig.getEnableHeartbeat() && System.currentTimeMillis() % sseConfig.getHeartbeatInterval() < 100) {
+                                            emitter.send(SseEmitter.event().name("heartbeat").data("ping"));
+                                        }
+                                    } catch (IOException e) {
+                                        log.error("SSE数据发送失败", e);
+                                        throw e;
+                                    }
+                                }
+
+                                @Override
+                                public void flush() { /* 确保数据发送 */ }
+                            },data -> {
+                            },
+                            aiProperties.getApiKey(),
+                            aiProperties.getAiType()
+                    );
+
+                } else if ("doubao".equals(aiProperties.getAiType())) {
+                    // 使用豆包AI
+                    doubaoStreamClient.chatStream(
                             userMessage,
                             historyJson,
                             true,
@@ -289,6 +329,40 @@ public class AiMessageServiceImpl implements AiMessageService {
                     if ("generalv3.5".equals(aiProperties.getAiType())) {
                         // 使用星火AI
                         sparkAIClient.chatStream(
+                                userMessage,
+                                historyJson,
+                                true,
+                                new OutputStream() {
+                                    @Override
+                                    public void write(int b) { /* 不需要实现 */ }
+
+                                    @Override
+                                    public void write(byte[] b, int off, int len) throws IOException {
+                                        try {
+                                            // 发送数据到前端
+                                            String jsonChunk = new String(b, off, len);
+                                            sink.next(jsonChunk);
+
+                                            // 累积内容到字符串
+                                            accumulator.appendChunk(b);
+                                            
+                                        } catch (Exception e) {
+                                            log.error("Flux数据发送失败", e);
+                                            sink.error(e);
+                                        }
+                                    }
+
+                                    @Override
+                                    public void flush() { /* 确保数据发送 */ }
+                                },data -> {
+                                },
+                                aiProperties.getApiKey(),
+                                aiProperties.getAiType()
+                        );
+
+                    } else if ("doubao".equals(aiProperties.getAiType())) {
+                        // 使用豆包AI
+                        doubaoStreamClient.chatStream(
                                 userMessage,
                                 historyJson,
                                 true,
