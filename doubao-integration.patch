@@ -1,0 +1,994 @@
+From 74a6773ffa659b1cd74408d0ccbba21e0e3e6fc9 Mon Sep 17 00:00:00 2001
+From: lby <lby@lbydeMacBook-Pro.local>
+Date: Tue, 23 Sep 2025 19:35:41 +0800
+Subject: [PATCH] =?UTF-8?q?feat:=20=E9=9B=86=E6=88=90=E8=B1=86=E5=8C=85?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ admin/pom.xml                                 |  31 +-
+ .../config/doubao/DoubaoProperties.java       |  56 ++++
+ .../xunzhi/config/satoken/SaTokenConfig.java  |   1 +
+ .../xunzhi/controller/DoubaoController.java   | 117 ++++++++
+ .../xunzhi/dao/entity/AgentPropertiesDO.java  |  54 ----
+ .../dto/req/doubao/DoubaoMessageReqDTO.java   |  22 ++
+ .../dto/resp/doubao/DoubaoMessageRespDTO.java |  29 ++
+ .../service/impl/AiMessageServiceImpl.java    |  74 +++++
+ .../xunzhi/toolkit/doubao/DoubaoClient.java   | 164 +++++++++++
+ .../toolkit/doubao/DoubaoStreamClient.java    | 278 ++++++++++++++++++
+ admin/src/main/resources/application.yaml     |  11 +
+ 11 files changed, 780 insertions(+), 57 deletions(-)
+ create mode 100644 admin/src/main/java/com/hewei/hzyjy/xunzhi/config/doubao/DoubaoProperties.java
+ create mode 100644 admin/src/main/java/com/hewei/hzyjy/xunzhi/controller/DoubaoController.java
+ create mode 100644 admin/src/main/java/com/hewei/hzyjy/xunzhi/dto/req/doubao/DoubaoMessageReqDTO.java
+ create mode 100644 admin/src/main/java/com/hewei/hzyjy/xunzhi/dto/resp/doubao/DoubaoMessageRespDTO.java
+ create mode 100644 admin/src/main/java/com/hewei/hzyjy/xunzhi/toolkit/doubao/DoubaoClient.java
+ create mode 100644 admin/src/main/java/com/hewei/hzyjy/xunzhi/toolkit/doubao/DoubaoStreamClient.java
+
+diff --git a/admin/pom.xml b/admin/pom.xml
+index 721a6ba..8055d7f 100644
+--- a/admin/pom.xml
++++ b/admin/pom.xml
+@@ -81,6 +81,14 @@
+             <version>${easyexcel.version}</version>
+         </dependency>
+ 
++        <!-- Lombok: 生成getter/setter/log等，并作为注解处理器参与编译 -->
++        <dependency>
++            <groupId>org.projectlombok</groupId>
++            <artifactId>lombok</artifactId>
++            <version>1.18.32</version>
++            <scope>provided</scope>
++        </dependency>
++
+ 
+         <dependency>
+         <groupId>org.springframework.boot</groupId>
+@@ -144,7 +152,13 @@
+             <artifactId>sa-token-redis-jackson</artifactId>
+             <version>1.39.0</version>
+         </dependency>
+-        
++
++        <!-- OkHttp客户端 -->
++        <dependency>
++            <groupId>com.squareup.okhttp3</groupId>
++            <artifactId>okhttp</artifactId>
++            <version>4.9.3</version>
++        </dependency>
+ 
+ 
+     </dependencies>
+@@ -153,9 +167,20 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-compiler-plugin</artifactId>
++                <version>3.11.0</version>
+                 <configuration>
+-                    <source>16</source>
+-                    <target>16</target>
++                    <source>17</source>
++                    <target>17</target>
++                    <compilerArgs>
++                        <arg>-parameters</arg>
++                    </compilerArgs>
++                    <annotationProcessorPaths>
++                        <path>
++                            <groupId>org.projectlombok</groupId>
++                            <artifactId>lombok</artifactId>
++                            <version>1.18.32</version>
++                        </path>
++                    </annotationProcessorPaths>
+                 </configuration>
+             </plugin>
+         </plugins>
+diff --git a/admin/src/main/java/com/hewei/hzyjy/xunzhi/config/doubao/DoubaoProperties.java b/admin/src/main/java/com/hewei/hzyjy/xunzhi/config/doubao/DoubaoProperties.java
+new file mode 100644
+index 0000000..7b89d40
+--- /dev/null
++++ b/admin/src/main/java/com/hewei/hzyjy/xunzhi/config/doubao/DoubaoProperties.java
+@@ -0,0 +1,56 @@
++package com.hewei.hzyjy.xunzhi.config.doubao;
++
++import lombok.Data;
++import org.springframework.boot.context.properties.ConfigurationProperties;
++import org.springframework.stereotype.Component;
++
++/**
++ * 豆包大模型配置属性
++ * 
++ * @author hewei
++ */
++@Data
++@Component
++@ConfigurationProperties(prefix = "doubao")
++public class DoubaoProperties {
++    
++    /**
++     * API密钥
++     */
++    private String apiKey;
++    
++    /**
++     * 密钥
++     */
++    private String secretKey;
++    
++    /**
++     * 地域
++     */
++    private String region = "cn-beijing";
++    
++    /**
++     * 模型ID
++     */
++    private String modelId = "doubao-lite-32k-240828";
++    
++    /**
++     * API基础URL
++     */
++    private String baseUrl = "https://ark.cn-beijing.volces.com/api/v3";
++    
++    /**
++     * 超时时间（秒）
++     */
++    private Integer timeout = 1800;
++    
++    /**
++     * 连接超时时间（秒）
++     */
++    private Integer connectTimeout = 20;
++    
++    /**
++     * 重试次数
++     */
++    private Integer retryTimes = 2;
++}
+diff --git a/admin/src/main/java/com/hewei/hzyjy/xunzhi/config/satoken/SaTokenConfig.java b/admin/src/main/java/com/hewei/hzyjy/xunzhi/config/satoken/SaTokenConfig.java
+index 541d827..90fedd4 100644
+--- a/admin/src/main/java/com/hewei/hzyjy/xunzhi/config/satoken/SaTokenConfig.java
++++ b/admin/src/main/java/com/hewei/hzyjy/xunzhi/config/satoken/SaTokenConfig.java
+@@ -25,6 +25,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
+                     .notMatch("/api/xunzhi/v1/users/login")    // 排除登录接口
+                     .notMatch("/api/xunzhi/v1/users/register")          // 排除注册接口
+                     .notMatch("/api/xunzhi/v1/users/has-username") // 排除用户名检查接口
++                    .notMatch("/api/xunzhi/v1/doubao/**")   // 排除豆包大模型接口
+                     .check(() -> StpUtil.checkLogin());        // 校验是否登录
+         })).addPathPatterns("/**");
+     }
+diff --git a/admin/src/main/java/com/hewei/hzyjy/xunzhi/controller/DoubaoController.java b/admin/src/main/java/com/hewei/hzyjy/xunzhi/controller/DoubaoController.java
+new file mode 100644
+index 0000000..a2529be
+--- /dev/null
++++ b/admin/src/main/java/com/hewei/hzyjy/xunzhi/controller/DoubaoController.java
+@@ -0,0 +1,117 @@
++package com.hewei.hzyjy.xunzhi.controller;
++
++import com.hewei.hzyjy.xunzhi.common.convention.result.Result;
++import com.hewei.hzyjy.xunzhi.common.convention.result.Results;
++import com.hewei.hzyjy.xunzhi.dto.req.doubao.DoubaoMessageReqDTO;
++import com.hewei.hzyjy.xunzhi.dto.resp.doubao.DoubaoMessageRespDTO;
++import com.hewei.hzyjy.xunzhi.toolkit.doubao.DoubaoClient;
++import lombok.RequiredArgsConstructor;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.web.bind.annotation.*;
++
++/**
++ * 豆包大模型功能控制器
++ * 提供豆包大模型对话接口
++ * 
++ * @author hewei
++ */
++@Slf4j
++@RestController
++@RequestMapping("/api/xunzhi/v1/doubao")
++@RequiredArgsConstructor
++public class DoubaoController {
++
++    private final DoubaoClient doubaoClient;
++
++    /**
++     * 豆包大模型对话接口（无需鉴权）
++     * 
++     * @param request 对话请求
++     * @return 对话响应
++     */
++    @PostMapping("/chat")
++    public Result<?> chat(@RequestBody DoubaoMessageReqDTO request) {
++        log.info("收到豆包对话请求: {}", request.getMessage());
++        
++        try {
++            // 检查客户端是否已初始化
++            if (!doubaoClient.isInitialized()) {
++                log.error("豆包客户端未初始化");
++                return Results.failure("500", "豆包客户端未初始化，请检查配置");
++            }
++            
++            // 调用豆包大模型
++            String response = doubaoClient.chat(request.getMessage(), request.getSystemPrompt());
++            
++            // 构建响应
++            DoubaoMessageRespDTO respDTO = DoubaoMessageRespDTO.builder()
++                    .message(response)
++                    .modelId("doubao-lite-32k-240828")
++                    .timestamp(System.currentTimeMillis())
++                    .build();
++            
++            log.info("豆包对话成功，响应长度: {}", response.length());
++            return Results.success(respDTO);
++            
++        } catch (Exception e) {
++            log.error("豆包对话处理失败", e);
++            return Results.failure("500", "对话处理失败: " + e.getMessage());
++        }
++    }
++    
++    /**
++     * 简单文本对话接口（GET方式，便于测试）
++     * 
++     * @param message 用户消息
++     * @return 对话响应
++     */
++    @GetMapping("/simple-chat")
++    public Result<?> simpleChat(@RequestParam String message) {
++        log.info("收到简单豆包对话请求: {}", message);
++        
++        try {
++            // 检查客户端是否已初始化
++            if (!doubaoClient.isInitialized()) {
++                log.error("豆包客户端未初始化");
++                return Results.failure("500", "豆包客户端未初始化，请检查配置");
++            }
++            
++            // 调用豆包大模型
++            String response = doubaoClient.chat(message);
++            
++            // 构建响应
++            DoubaoMessageRespDTO respDTO = DoubaoMessageRespDTO.builder()
++                    .message(response)
++                    .modelId("doubao-lite-32k-240828")
++                    .timestamp(System.currentTimeMillis())
++                    .build();
++            
++            log.info("简单豆包对话成功，响应长度: {}", response.length());
++            return Results.success(respDTO);
++            
++        } catch (Exception e) {
++            log.error("简单豆包对话处理失败", e);
++            return Results.failure("500", "对话处理失败: " + e.getMessage());
++        }
++    }
++    
++    /**
++     * 健康检查接口
++     * 
++     * @return 健康状态
++     */
++    @GetMapping("/health")
++    public Result<?> health() {
++        try {
++            boolean initialized = doubaoClient.isInitialized();
++            if (initialized) {
++                return Results.success("豆包大模型服务正常");
++            } else {
++                return Results.failure("500", "豆包大模型服务未初始化");
++            }
++        } catch (Exception e) {
++            log.error("健康检查失败", e);
++            return Results.failure("500", "健康检查失败: " + e.getMessage());
++        }
++    }
++}
+diff --git a/admin/src/main/java/com/hewei/hzyjy/xunzhi/dao/entity/AgentPropertiesDO.java b/admin/src/main/java/com/hewei/hzyjy/xunzhi/dao/entity/AgentPropertiesDO.java
+index 229988d..b7be9ba 100644
+--- a/admin/src/main/java/com/hewei/hzyjy/xunzhi/dao/entity/AgentPropertiesDO.java
++++ b/admin/src/main/java/com/hewei/hzyjy/xunzhi/dao/entity/AgentPropertiesDO.java
+@@ -52,58 +52,4 @@ public class AgentPropertiesDO {
+      */
+     private Integer delFlag;
+ 
+-    @Override
+-    public boolean equals(Object that) {
+-        if (this == that) {
+-            return true;
+-        }
+-        if (that == null) {
+-            return false;
+-        }
+-        if (getClass() != that.getClass()) {
+-            return false;
+-        }
+-        AgentPropertiesDO other = (AgentPropertiesDO) that;
+-        return (this.getId() == null ? other.getId() == null : this.getId().equals(other.getId()))
+-            && (this.getAgentName() == null ? other.getAgentName() == null : this.getAgentName().equals(other.getAgentName()))
+-            && (this.getApiSecret() == null ? other.getApiSecret() == null : this.getApiSecret().equals(other.getApiSecret()))
+-            && (this.getApiKey() == null ? other.getApiKey() == null : this.getApiKey().equals(other.getApiKey()))
+-            && (this.getApiFlowId() == null ? other.getApiFlowId() == null : this.getApiFlowId().equals(other.getApiFlowId()))
+-            && (this.getCreateTime() == null ? other.getCreateTime() == null : this.getCreateTime().equals(other.getCreateTime()))
+-            && (this.getUpdateTime() == null ? other.getUpdateTime() == null : this.getUpdateTime().equals(other.getUpdateTime()))
+-            && (this.getDelFlag() == null ? other.getDelFlag() == null : this.getDelFlag().equals(other.getDelFlag()));
+-    }
+-
+-    @Override
+-    public int hashCode() {
+-        final int prime = 31;
+-        int result = 1;
+-        result = prime * result + ((getId() == null) ? 0 : getId().hashCode());
+-        result = prime * result + ((getAgentName() == null) ? 0 : getAgentName().hashCode());
+-        result = prime * result + ((getApiSecret() == null) ? 0 : getApiSecret().hashCode());
+-        result = prime * result + ((getApiKey() == null) ? 0 : getApiKey().hashCode());
+-        result = prime * result + ((getApiFlowId() == null) ? 0 : getApiFlowId().hashCode());
+-        result = prime * result + ((getCreateTime() == null) ? 0 : getCreateTime().hashCode());
+-        result = prime * result + ((getUpdateTime() == null) ? 0 : getUpdateTime().hashCode());
+-        result = prime * result + ((getDelFlag() == null) ? 0 : getDelFlag().hashCode());
+-        return result;
+-    }
+-
+-    @Override
+-    public String toString() {
+-        StringBuilder sb = new StringBuilder();
+-        sb.append(getClass().getSimpleName());
+-        sb.append(" [");
+-        sb.append("Hash = ").append(hashCode());
+-        sb.append(", id=").append(id);
+-        sb.append(", agentName=").append(agentName);
+-        sb.append(", apiSecret=").append(apiSecret);
+-        sb.append(", apiKey=").append(apiKey);
+-        sb.append(", apiFlowId=").append(apiFlowId);
+-        sb.append(", createTime=").append(createTime);
+-        sb.append(", updateTime=").append(updateTime);
+-        sb.append(", delFlag=").append(delFlag);
+-        sb.append("]");
+-        return sb.toString();
+-    }
+ }
+\ No newline at end of file
+diff --git a/admin/src/main/java/com/hewei/hzyjy/xunzhi/dto/req/doubao/DoubaoMessageReqDTO.java b/admin/src/main/java/com/hewei/hzyjy/xunzhi/dto/req/doubao/DoubaoMessageReqDTO.java
+new file mode 100644
+index 0000000..4f49193
+--- /dev/null
++++ b/admin/src/main/java/com/hewei/hzyjy/xunzhi/dto/req/doubao/DoubaoMessageReqDTO.java
+@@ -0,0 +1,22 @@
++package com.hewei.hzyjy.xunzhi.dto.req.doubao;
++
++import lombok.Data;
++
++/**
++ * 豆包大模型对话请求DTO
++ * 
++ * @author hewei
++ */
++@Data
++public class DoubaoMessageReqDTO {
++    
++    /**
++     * 用户消息内容
++     */
++    private String message;
++    
++    /**
++     * 系统提示（可选）
++     */
++    private String systemPrompt;
++}
+diff --git a/admin/src/main/java/com/hewei/hzyjy/xunzhi/dto/resp/doubao/DoubaoMessageRespDTO.java b/admin/src/main/java/com/hewei/hzyjy/xunzhi/dto/resp/doubao/DoubaoMessageRespDTO.java
+new file mode 100644
+index 0000000..6a13500
+--- /dev/null
++++ b/admin/src/main/java/com/hewei/hzyjy/xunzhi/dto/resp/doubao/DoubaoMessageRespDTO.java
+@@ -0,0 +1,29 @@
++package com.hewei.hzyjy.xunzhi.dto.resp.doubao;
++
++import lombok.Builder;
++import lombok.Data;
++
++/**
++ * 豆包大模型对话响应DTO
++ * 
++ * @author hewei
++ */
++@Data
++@Builder
++public class DoubaoMessageRespDTO {
++    
++    /**
++     * 模型回复内容
++     */
++    private String message;
++    
++    /**
++     * 使用的模型ID
++     */
++    private String modelId;
++    
++    /**
++     * 响应时间戳
++     */
++    private Long timestamp;
++}
+diff --git a/admin/src/main/java/com/hewei/hzyjy/xunzhi/service/impl/AiMessageServiceImpl.java b/admin/src/main/java/com/hewei/hzyjy/xunzhi/service/impl/AiMessageServiceImpl.java
+index 0b52c4b..8149eef 100644
+--- a/admin/src/main/java/com/hewei/hzyjy/xunzhi/service/impl/AiMessageServiceImpl.java
++++ b/admin/src/main/java/com/hewei/hzyjy/xunzhi/service/impl/AiMessageServiceImpl.java
+@@ -23,6 +23,7 @@ import com.hewei.hzyjy.xunzhi.service.UserService;
+ import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AIContentAccumulator;
+ import com.hewei.hzyjy.xunzhi.toolkit.xunfei.RoleContent;
+ import com.hewei.hzyjy.xunzhi.toolkit.xunfei.SparkAIClient;
++import com.hewei.hzyjy.xunzhi.toolkit.doubao.DoubaoStreamClient;
+ import lombok.RequiredArgsConstructor;
+ import lombok.extern.slf4j.Slf4j;
+ import org.springframework.beans.BeanUtils;
+@@ -57,6 +58,7 @@ public class AiMessageServiceImpl implements AiMessageService {
+     // 移除AgentPropertiesService依赖，不再需要
+     private final UserService userService;
+     private final SparkAIClient sparkAIClient;
++    private final DoubaoStreamClient doubaoStreamClient;
+     private final StringRedisTemplate stringRedisTemplate;
+     private final SseConfig sseConfig;
+ 
+@@ -153,6 +155,44 @@ public class AiMessageServiceImpl implements AiMessageService {
+                             aiProperties.getAiType()
+                     );
+ 
++                } else if ("doubao".equals(aiProperties.getAiType())) {
++                    // 使用豆包AI
++                    doubaoStreamClient.chatStream(
++                            userMessage,
++                            historyJson,
++                            true,
++                            new OutputStream() {
++                                @Override
++                                public void write(int b) { /* 不需要实现 */ }
++
++                                @Override
++                                public void write(byte[] b, int off, int len) throws IOException {
++                                    try {
++                                        // 发送数据到前端
++                                        String jsonChunk = new String(b, off, len);
++                                        emitter.send(SseEmitter.event().data(jsonChunk));
++
++                                        // 累积内容到字符串
++                                        accumulator.appendChunk(b);
++                                        
++                                        // 发送心跳保持连接活跃
++                                        if (sseConfig.getEnableHeartbeat() && System.currentTimeMillis() % sseConfig.getHeartbeatInterval() < 100) {
++                                            emitter.send(SseEmitter.event().name("heartbeat").data("ping"));
++                                        }
++                                    } catch (IOException e) {
++                                        log.error("SSE数据发送失败", e);
++                                        throw e;
++                                    }
++                                }
++
++                                @Override
++                                public void flush() { /* 确保数据发送 */ }
++                            },data -> {
++                            },
++                            aiProperties.getApiKey(),
++                            aiProperties.getAiType()
++                    );
++
+                 } else {
+                     // 其他AI类型的处理逻辑
+                     aiResponse = "暂不支持该AI类型";
+@@ -320,6 +360,40 @@ public class AiMessageServiceImpl implements AiMessageService {
+                                 aiProperties.getAiType()
+                         );
+ 
++                    } else if ("doubao".equals(aiProperties.getAiType())) {
++                        // 使用豆包AI
++                        doubaoStreamClient.chatStream(
++                                userMessage,
++                                historyJson,
++                                true,
++                                new OutputStream() {
++                                    @Override
++                                    public void write(int b) { /* 不需要实现 */ }
++
++                                    @Override
++                                    public void write(byte[] b, int off, int len) throws IOException {
++                                        try {
++                                            // 发送数据到前端
++                                            String jsonChunk = new String(b, off, len);
++                                            sink.next(jsonChunk);
++
++                                            // 累积内容到字符串
++                                            accumulator.appendChunk(b);
++                                            
++                                        } catch (Exception e) {
++                                            log.error("Flux数据发送失败", e);
++                                            sink.error(e);
++                                        }
++                                    }
++
++                                    @Override
++                                    public void flush() { /* 确保数据发送 */ }
++                                },data -> {
++                                },
++                                aiProperties.getApiKey(),
++                                aiProperties.getAiType()
++                        );
++
+                     } else {
+                         // 其他AI类型的处理逻辑
+                         aiResponse = "暂不支持该AI类型";
+diff --git a/admin/src/main/java/com/hewei/hzyjy/xunzhi/toolkit/doubao/DoubaoClient.java b/admin/src/main/java/com/hewei/hzyjy/xunzhi/toolkit/doubao/DoubaoClient.java
+new file mode 100644
+index 0000000..48ce740
+--- /dev/null
++++ b/admin/src/main/java/com/hewei/hzyjy/xunzhi/toolkit/doubao/DoubaoClient.java
+@@ -0,0 +1,164 @@
++package com.hewei.hzyjy.xunzhi.toolkit.doubao;
++
++import com.alibaba.fastjson2.JSON;
++import com.alibaba.fastjson2.JSONArray;
++import com.alibaba.fastjson2.JSONObject;
++import com.hewei.hzyjy.xunzhi.config.doubao.DoubaoProperties;
++import lombok.extern.slf4j.Slf4j;
++import okhttp3.*;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++import jakarta.annotation.PostConstruct;
++import jakarta.annotation.PreDestroy;
++import java.io.IOException;
++import java.util.concurrent.TimeUnit;
++
++/**
++ * 豆包大模型客户端
++ * 
++ * @author hewei
++ */
++@Slf4j
++@Component
++public class DoubaoClient {
++    
++    @Autowired
++    private DoubaoProperties doubaoProperties;
++    
++    private OkHttpClient httpClient;
++    
++    @PostConstruct
++    public void init() {
++        try {
++            log.info("正在初始化豆包大模型客户端...");
++            this.httpClient = new OkHttpClient.Builder()
++                    .connectTimeout(doubaoProperties.getConnectTimeout(), TimeUnit.SECONDS)
++                    .readTimeout(doubaoProperties.getTimeout(), TimeUnit.SECONDS)
++                    .writeTimeout(doubaoProperties.getTimeout(), TimeUnit.SECONDS)
++                    .build();
++            log.info("豆包大模型客户端初始化成功");
++        } catch (Exception e) {
++            log.error("豆包大模型客户端初始化失败", e);
++            throw new RuntimeException("豆包大模型客户端初始化失败", e);
++        }
++    }
++    
++    @PreDestroy
++    public void destroy() {
++        if (httpClient != null) {
++            try {
++                httpClient.dispatcher().executorService().shutdown();
++                httpClient.connectionPool().evictAll();
++                log.info("豆包大模型客户端已关闭");
++            } catch (Exception e) {
++                log.error("关闭豆包大模型客户端时发生错误", e);
++            }
++        }
++    }
++    
++    /**
++     * 调用豆包大模型生成回复
++     *
++     * @param userPrompt 用户输入的提示
++     * @return 模型生成的回复
++     */
++    public String chat(String userPrompt) {
++        return chat(userPrompt, null);
++    }
++    
++    /**
++     * 调用豆包大模型生成回复
++     *
++     * @param userPrompt 用户输入的提示
++     * @param systemPrompt 系统提示（可选）
++     * @return 模型生成的回复
++     */
++    public String chat(String userPrompt, String systemPrompt) {
++        try {
++            log.info("开始调用豆包大模型，用户输入: {}", userPrompt);
++            
++            // 构建请求体
++            JSONObject requestBody = new JSONObject();
++            requestBody.put("model", doubaoProperties.getModelId());
++            requestBody.put("max_tokens", 2048);
++            requestBody.put("temperature", 0.7);
++            requestBody.put("stream", false);
++            
++            // 构建消息数组
++            JSONArray messages = new JSONArray();
++            
++            // 添加系统提示（如果有）
++            if (systemPrompt != null && !systemPrompt.trim().isEmpty()) {
++                JSONObject systemMessage = new JSONObject();
++                systemMessage.put("role", "system");
++                systemMessage.put("content", systemPrompt);
++                messages.add(systemMessage);
++            }
++            
++            // 添加用户消息
++            JSONObject userMessage = new JSONObject();
++            userMessage.put("role", "user");
++            userMessage.put("content", userPrompt);
++            messages.add(userMessage);
++            
++            requestBody.put("messages", messages);
++            
++            // 创建请求
++            RequestBody body = RequestBody.create(
++                    requestBody.toJSONString(),
++                    MediaType.parse("application/json; charset=utf-8")
++            );
++            
++            Request request = new Request.Builder()
++                    .url(doubaoProperties.getBaseUrl() + "/chat/completions")
++                    .post(body)
++                    .addHeader("Content-Type", "application/json")
++                    .addHeader("Authorization", "Bearer " + doubaoProperties.getApiKey())
++                    .build();
++            
++            // 发送请求
++            try (Response response = httpClient.newCall(request).execute()) {
++                if (!response.isSuccessful()) {
++                    String errorBody = response.body() != null ? response.body().string() : "Unknown error";
++                    log.error("豆包API调用失败，HTTP状态码: {}, 错误信息: {}", response.code(), errorBody);
++                    return "抱歉，调用失败：HTTP " + response.code() + " - " + errorBody;
++                }
++                
++                String responseBody = response.body().string();
++                log.debug("豆包API响应: {}", responseBody);
++                
++                // 解析响应
++                JSONObject responseJson = JSON.parseObject(responseBody);
++                JSONArray choices = responseJson.getJSONArray("choices");
++                
++                if (choices != null && !choices.isEmpty()) {
++                    JSONObject choice = choices.getJSONObject(0);
++                    JSONObject message = choice.getJSONObject("message");
++                    String result = message.getString("content");
++                    
++                    log.info("豆包大模型回复成功，回复内容长度: {}", result.length());
++                    return result;
++                } else {
++                    log.warn("豆包大模型未返回有效结果");
++                    return "抱歉，模型未返回有效结果";
++                }
++            }
++        } catch (IOException e) {
++            log.error("调用豆包大模型网络请求失败", e);
++            return "抱歉，网络请求失败：" + e.getMessage();
++        } catch (Exception e) {
++            log.error("调用豆包大模型失败", e);
++            return "抱歉，调用失败：" + e.getMessage();
++        }
++    }
++    
++    /**
++     * 检查客户端是否已初始化
++     *
++     * @return true if initialized, false otherwise
++     */
++    public boolean isInitialized() {
++        return httpClient != null;
++    }
++}
+diff --git a/admin/src/main/java/com/hewei/hzyjy/xunzhi/toolkit/doubao/DoubaoStreamClient.java b/admin/src/main/java/com/hewei/hzyjy/xunzhi/toolkit/doubao/DoubaoStreamClient.java
+new file mode 100644
+index 0000000..ed540b6
+--- /dev/null
++++ b/admin/src/main/java/com/hewei/hzyjy/xunzhi/toolkit/doubao/DoubaoStreamClient.java
+@@ -0,0 +1,278 @@
++package com.hewei.hzyjy.xunzhi.toolkit.doubao;
++
++import com.alibaba.fastjson2.JSON;
++import com.alibaba.fastjson2.JSONArray;
++import com.alibaba.fastjson2.JSONObject;
++import com.hewei.hzyjy.xunzhi.config.doubao.DoubaoProperties;
++import lombok.extern.slf4j.Slf4j;
++import okhttp3.*;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++import jakarta.annotation.PostConstruct;
++import jakarta.annotation.PreDestroy;
++import java.io.BufferedReader;
++import java.io.IOException;
++import java.io.OutputStream;
++import java.io.StringReader;
++import java.nio.charset.StandardCharsets;
++import java.util.concurrent.TimeUnit;
++import java.util.function.Consumer;
++
++/**
++ * 豆包流式AI客户端
++ * 兼容SparkAIClient接口，支持流式响应
++ * 
++ * @author hewei
++ */
++@Slf4j
++@Component
++public class DoubaoStreamClient {
++    
++    @Autowired
++    private DoubaoProperties doubaoProperties;
++    
++    private OkHttpClient httpClient;
++    
++    @PostConstruct
++    public void init() {
++        try {
++            log.info("正在初始化豆包流式AI客户端...");
++            this.httpClient = new OkHttpClient.Builder()
++                    .connectTimeout(doubaoProperties.getConnectTimeout(), TimeUnit.SECONDS)
++                    .readTimeout(doubaoProperties.getTimeout(), TimeUnit.SECONDS)
++                    .writeTimeout(doubaoProperties.getTimeout(), TimeUnit.SECONDS)
++                    .build();
++            log.info("豆包流式AI客户端初始化成功");
++        } catch (Exception e) {
++            log.error("豆包流式AI客户端初始化失败", e);
++            throw new RuntimeException("豆包流式AI客户端初始化失败", e);
++        }
++    }
++    
++    @PreDestroy
++    public void destroy() {
++        if (httpClient != null) {
++            try {
++                httpClient.dispatcher().executorService().shutdown();
++                httpClient.connectionPool().evictAll();
++                log.info("豆包流式AI客户端已关闭");
++            } catch (Exception e) {
++                log.error("关闭豆包流式AI客户端时发生错误", e);
++            }
++        }
++    }
++    
++    /**
++     * 发送对话请求（兼容SparkAIClient接口）
++     * @param input 用户输入
++     * @param history 历史对话记录 (JSON字符串格式)
++     * @param stream 是否启用流式响应
++     * @param outputStream 输出流，用于写入AI响应
++     * @param callback 回调函数，处理每个接收到的数据块
++     * @param customApiKey API密钥（这里将使用配置中的豆包密钥）
++     * @param model 使用的AI模型（这里将使用配置中的豆包模型）
++     * @throws Exception 请求或处理过程中发生异常
++     */
++    public void chatStream(String input, String history, boolean stream, OutputStream outputStream,
++                     Consumer<String> callback, String customApiKey, String model) throws Exception {
++        try {
++            log.info("开始调用豆包流式AI，用户输入: {}, 流式模式: {}", input, stream);
++            
++            // 构建请求体
++            JSONObject requestBody = new JSONObject();
++            requestBody.put("model", doubaoProperties.getModelId());
++            requestBody.put("max_tokens", 2048);
++            requestBody.put("temperature", 0.7);
++            requestBody.put("stream", stream);
++            
++            // 构建消息数组
++            JSONArray messages = new JSONArray();
++            
++            // 处理历史消息
++            if (history != null && !history.trim().isEmpty()) {
++                try {
++                    JSONArray historyJsonArray = JSON.parseArray(history);
++                    for (Object msg : historyJsonArray) {
++                        if (msg instanceof JSONObject) {
++                            messages.add(msg);
++                        }
++                    }
++                } catch (Exception e) {
++                    log.warn("解析历史消息JSON失败: {}", e.getMessage());
++                }
++            }
++            
++            // 添加当前用户消息
++            JSONObject userMessage = new JSONObject();
++            userMessage.put("role", "user");
++            userMessage.put("content", input);
++            messages.add(userMessage);
++            
++            requestBody.put("messages", messages);
++            
++            // 创建请求
++            RequestBody body = RequestBody.create(
++                    requestBody.toJSONString(),
++                    MediaType.parse("application/json; charset=utf-8")
++            );
++            
++            Request.Builder requestBuilder = new Request.Builder()
++                    .url(doubaoProperties.getBaseUrl() + "/chat/completions")
++                    .post(body)
++                    .addHeader("Content-Type", "application/json")
++                    .addHeader("Authorization", "Bearer " + doubaoProperties.getApiKey());
++            
++            if (stream) {
++                requestBuilder.addHeader("Accept", "text/event-stream");
++            }
++            
++            Request request = requestBuilder.build();
++            
++            // 发送请求
++            try (Response response = httpClient.newCall(request).execute()) {
++                if (!response.isSuccessful()) {
++                    String errorBody = response.body() != null ? response.body().string() : "Unknown error";
++                    log.error("豆包API调用失败，HTTP状态码: {}, 错误信息: {}", response.code(), errorBody);
++                    throw new RuntimeException("HTTP请求失败，响应码: " + response.code() + ", 响应体: " + errorBody);
++                }
++                
++                if (stream) {
++                    handleStreamResponse(response, outputStream, callback);
++                } else {
++                    handleNonStreamResponse(response, outputStream, callback);
++                }
++            }
++            
++        } catch (IOException e) {
++            log.error("调用豆包流式AI网络请求失败", e);
++            throw new Exception("网络请求失败：" + e.getMessage(), e);
++        } catch (Exception e) {
++            log.error("调用豆包流式AI失败", e);
++            throw new Exception("调用失败：" + e.getMessage(), e);
++        }
++    }
++    
++    /**
++     * 处理流式响应
++     */
++    private void handleStreamResponse(Response response, OutputStream outputStream, Consumer<String> callback) 
++            throws IOException {
++        try (BufferedReader reader = new BufferedReader(response.body().charStream())) {
++            String line;
++            while ((line = reader.readLine()) != null) {
++                // 过滤空行
++                if (line.trim().isEmpty()) {
++                    continue;
++                }
++                
++                // 检查线程中断
++                if (Thread.currentThread().isInterrupted()) {
++                    log.info("检测到线程中断，停止数据读取");
++                    break;
++                }
++                
++                String processedLine = null;
++                
++                if (line.startsWith("data: ")) {
++                    // 提取SSE数据部分
++                    String dataContent = line.substring(6).trim();
++                    if (dataContent.equals("[DONE]")) {
++                        processedLine = "[DONE]";
++                    } else if (dataContent.startsWith("{")) {
++                        try {
++                            // 解析豆包返回的JSON，转换为兼容格式
++                            JSONObject jsonData = JSON.parseObject(dataContent);
++                            JSONArray choices = jsonData.getJSONArray("choices");
++                            if (choices != null && !choices.isEmpty()) {
++                                JSONObject choice = choices.getJSONObject(0);
++                                JSONObject delta = choice.getJSONObject("delta");
++                                if (delta != null && delta.containsKey("content")) {
++                                    // 构建兼容SparkAI格式的响应
++                                    JSONObject compatibleResponse = new JSONObject();
++                                    JSONArray compatibleChoices = new JSONArray();
++                                    JSONObject compatibleChoice = new JSONObject();
++                                    JSONObject compatibleDelta = new JSONObject();
++                                    
++                                    compatibleDelta.put("content", delta.getString("content"));
++                                    compatibleChoice.put("delta", compatibleDelta);
++                                    compatibleChoices.add(compatibleChoice);
++                                    compatibleResponse.put("choices", compatibleChoices);
++                                    
++                                    processedLine = compatibleResponse.toJSONString();
++                                }
++                            }
++                        } catch (Exception e) {
++                            log.warn("解析豆包响应JSON失败: {}", e.getMessage());
++                        }
++                    }
++                } else if (line.startsWith("{") || line.equals("[DONE]")) {
++                    // 直接的JSON数据或结束标记
++                    processedLine = line;
++                }
++                
++                if (processedLine != null) {
++                    callback.accept(processedLine);
++                    log.debug("AI数据接收: {}", processedLine);
++                    
++                    // 发送处理后的数据
++                    outputStream.write(processedLine.getBytes(StandardCharsets.UTF_8));
++                    outputStream.flush();
++                } else {
++                    log.debug("数据过滤: 跳过无效行: {}", line);
++                }
++            }
++        }
++    }
++    
++    /**
++     * 处理非流式响应
++     */
++    private void handleNonStreamResponse(Response response, OutputStream outputStream, Consumer<String> callback) 
++            throws IOException {
++        String responseBody = response.body().string();
++        log.debug("豆包API非流式响应: {}", responseBody);
++        
++        try {
++            // 解析豆包返回的JSON，转换为兼容格式
++            JSONObject responseJson = JSON.parseObject(responseBody);
++            JSONArray choices = responseJson.getJSONArray("choices");
++            
++            if (choices != null && !choices.isEmpty()) {
++                JSONObject choice = choices.getJSONObject(0);
++                JSONObject message = choice.getJSONObject("message");
++                
++                if (message != null) {
++                    // 构建兼容SparkAI格式的响应
++                    JSONObject compatibleResponse = new JSONObject();
++                    JSONArray compatibleChoices = new JSONArray();
++                    JSONObject compatibleChoice = new JSONObject();
++                    
++                    compatibleChoice.put("message", message);
++                    compatibleChoices.add(compatibleChoice);
++                    compatibleResponse.put("choices", compatibleChoices);
++                    
++                    String result = compatibleResponse.toJSONString();
++                    callback.accept(result);
++                    outputStream.write(result.getBytes(StandardCharsets.UTF_8));
++                    outputStream.flush();
++                }
++            }
++        } catch (Exception e) {
++            log.error("解析豆包非流式响应失败", e);
++            // 如果解析失败，直接返回原始响应
++            callback.accept(responseBody);
++            outputStream.write(responseBody.getBytes(StandardCharsets.UTF_8));
++            outputStream.flush();
++        }
++    }
++    
++    /**
++     * 检查客户端是否已初始化
++     *
++     * @return true if initialized, false otherwise
++     */
++    public boolean isInitialized() {
++        return httpClient != null;
++    }
++}
+diff --git a/admin/src/main/resources/application.yaml b/admin/src/main/resources/application.yaml
+index 6384bc6..22b323e 100644
+--- a/admin/src/main/resources/application.yaml
++++ b/admin/src/main/resources/application.yaml
+@@ -50,6 +50,17 @@ xunfei:
+     api-key: e8565c438f59b301616e0498a86ad95d
+     api-secret: OGZkZGQ5ZDY0Yzc4MTllZWI3ZmU2MDU4
+ 
++# 豆包大模型配置
++doubao:
++  api-key: 59378d07-9d8b-41fc-9e48-05fb806c2ac9
++  secret-key: WkdWa1ltUTJZMlZsWTJFNU5ETXhZbUl3TXpCaVltTTVaamM1TWpWbVltSQ==
++  region: cn-beijing  # 地域，固定为 cn-beijing
++  model-id: doubao-lite-32k-character-250228  # 模型名称（含版本）
++  base-url: https://ark.cn-beijing.volces.com/api/v3  # API 端点
++  timeout: 1800  # 超时时间（秒）
++  connect-timeout: 20  # 连接超时（秒）
++  retry-times: 2  # 重试次数
++
+ xunzhi-agent:
+   flow-limit:
+     enable: true
+-- 
+2.39.3 (Apple Git-146)
+

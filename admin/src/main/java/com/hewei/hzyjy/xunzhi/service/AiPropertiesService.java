@@ -53,4 +53,14 @@ public interface AiPropertiesService extends IService<AiPropertiesDO> {
 
     List<AiPropertiesRespDTO> getAllEnabledAiProperties();
 
+    /**
+     * 根据AI类型获取启用的配置
+     */
+    AiPropertiesDO getEnabledByAiType(String aiType);
+
+    /**
+     * 获取默认的豆包配置
+     */
+    AiPropertiesDO getDefaultDoubaoConfig();
+
 }

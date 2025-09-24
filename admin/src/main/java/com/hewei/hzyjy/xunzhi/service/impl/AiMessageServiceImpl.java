@@ -82,10 +82,16 @@ public class AiMessageServiceImpl implements AiMessageService {
             long startTime = System.currentTimeMillis();
             
             try {
-                // 1. 验证AI配置
-                AiPropertiesDO aiProperties = aiPropertiesService.getById(aiId);
-                if (aiProperties == null || aiProperties.getDelFlag() == 1 || aiProperties.getIsEnabled() == 0) {
-                    throw new ClientException("AI配置不存在或已禁用");
+                // 1. 验证AI配置，如果未指定则使用默认豆包配置
+                AiPropertiesDO aiProperties;
+                if (aiId == null) {
+                    log.info("未指定AI ID，使用默认豆包配置");
+                    aiProperties = aiPropertiesService.getDefaultDoubaoConfig();
+                } else {
+                    aiProperties = aiPropertiesService.getById(aiId);
+                    if (aiProperties == null || aiProperties.getDelFlag() == 1 || aiProperties.getIsEnabled() == 0) {
+                        throw new ClientException("AI配置不存在或已禁用");
+                    }
                 }
                 
                 // 2. 处理历史消息
@@ -290,11 +296,17 @@ public class AiMessageServiceImpl implements AiMessageService {
                 long startTime = System.currentTimeMillis();
                 
                 try {
-                    // 1. 验证AI配置
-                    AiPropertiesDO aiProperties = aiPropertiesService.getById(aiId);
-                    if (aiProperties == null || aiProperties.getDelFlag() == 1 || aiProperties.getIsEnabled() == 0) {
-                        sink.error(new ClientException("AI配置不存在或已禁用"));
-                        return;
+                    // 1. 验证AI配置，如果未指定则使用默认豆包配置
+                    AiPropertiesDO aiProperties;
+                    if (aiId == null) {
+                        log.info("未指定AI ID，使用默认豆包配置");
+                        aiProperties = aiPropertiesService.getDefaultDoubaoConfig();
+                    } else {
+                        aiProperties = aiPropertiesService.getById(aiId);
+                        if (aiProperties == null || aiProperties.getDelFlag() == 1 || aiProperties.getIsEnabled() == 0) {
+                            sink.error(new ClientException("AI配置不存在或已禁用"));
+                            return;
+                        }
                     }
                     
                     // 2. 处理历史消息
