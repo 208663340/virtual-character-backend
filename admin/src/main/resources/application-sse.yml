@@ -11,7 +11,7 @@ sse:
   heartbeat-interval: 10000  # 10秒
   
   # AI接口连接超时时间（毫秒）
-  connect-timeout: 30000  # 30秒
+  connect-timeout: 60000  # 60秒
   
   # AI接口读取超时时间（毫秒）
   read-timeout: 300000  # 5分钟
