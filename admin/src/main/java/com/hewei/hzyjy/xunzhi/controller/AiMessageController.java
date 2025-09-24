@@ -8,7 +8,8 @@ import com.hewei.hzyjy.xunzhi.dto.req.ai.AiMessageReqDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.ai.AiMessageHistoryRespDTO;
 import com.hewei.hzyjy.xunzhi.service.AiMessageService;
 import com.hewei.hzyjy.xunzhi.common.util.SaTokenUtil;
-import com.hewei.hzyjy.xunzhi.toolkit.doubao.DoubaoStreamClient;
+import com.hewei.hzyjy.xunzhi.toolkit.doubao.DoubaoClient;
+import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AIContentAccumulator;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +36,7 @@ public class AiMessageController {
     
     private final AiMessageService aiMessageService;
     private final SaTokenUtil saTokenUtil;
-    private final DoubaoStreamClient doubaoStreamClient;
+    private final DoubaoClient doubaoClient;
     
     /**
      * AI聊天Flux接口（默认使用豆包大模型）
@@ -87,7 +88,7 @@ public class AiMessageController {
     }
     
     /**
-     * 豆包对话接口
+     * 豆包流式对话接口（无需认证）
      */
     @GetMapping(value = "/doubao/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> doubaoChat(@RequestParam String message) {
@@ -96,7 +97,7 @@ public class AiMessageController {
         return Flux.create(sink -> {
             try {
                 // 检查客户端是否已初始化
-                if (!doubaoStreamClient.isInitialized()) {
+                if (!doubaoClient.isInitialized()) {
                     sink.next("data: 豆包客户端未初始化\n\n");
                     sink.complete();
                     return;
@@ -106,51 +107,57 @@ public class AiMessageController {
                 String decodedMessage = URLDecoder.decode(message, StandardCharsets.UTF_8);
                 log.info("解码后的消息: {}", decodedMessage);
 
-                // 创建输出流来捕获流式响应
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                // 内容累积器
+                AIContentAccumulator accumulator = new AIContentAccumulator();
                 
-                // 调用豆包流式客户端
-                doubaoStreamClient.chatStream(
+                // 调用豆包客户端
+                doubaoClient.chatStream(
                     decodedMessage,
                     null, // 无历史消息
                     true, // 启用流式响应
                     new OutputStream() {
                         @Override
                         public void write(int b) throws IOException {
-                            outputStream.write(b);
+                            // 不需要实现
                         }
 
                         @Override
                         public void write(byte[] b, int off, int len) throws IOException {
-                            outputStream.write(b, off, len);
-                            // 将接收到的数据块发送到SSE流
-                            String chunk = new String(b, off, len, StandardCharsets.UTF_8);
-                            if (!chunk.trim().isEmpty()) {
-                                sink.next("data: " + chunk + "\n\n");
+                            try {
+                                // 发送数据到前端
+                                String jsonChunk = new String(b, off, len);
+                                sink.next(jsonChunk);
+
+                                // 累积内容到字符串
+                                accumulator.appendChunk(b);
+                                
+                            } catch (Exception e) {
+                                log.error("豆包数据发送失败", e);
+                                sink.error(e);
                             }
                         }
 
                         @Override
                         public void flush() throws IOException {
-                            outputStream.flush();
+                            // 确保数据发送
                         }
                     },
                     data -> {
                         // 回调函数，处理接收到的数据
                         if (data != null && !data.trim().isEmpty()) {
-                            sink.next("data: " + data + "\n\n");
+                            log.debug("[豆包数据接收] {}", data);
                         }
                     },
                     null, // 使用默认API Key
                     null  // 使用默认模型
                 );
                 
-                sink.next("data: [DONE]\n\n");
+                sink.next("[DONE]");
                 sink.complete();
                 
             } catch (Exception e) {
                 log.error("豆包对话处理失败", e);
-                sink.next("data: 错误: " + e.getMessage() + "\n\n");
+                sink.next("错误: " + e.getMessage());
                 sink.error(e);
             }
         });

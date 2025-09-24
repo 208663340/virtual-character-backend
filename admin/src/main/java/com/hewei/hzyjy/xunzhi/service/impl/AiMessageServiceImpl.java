@@ -23,7 +23,7 @@ import com.hewei.hzyjy.xunzhi.service.UserService;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AIContentAccumulator;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.RoleContent;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.SparkAIClient;
-import com.hewei.hzyjy.xunzhi.toolkit.doubao.DoubaoStreamClient;
+import com.hewei.hzyjy.xunzhi.toolkit.doubao.DoubaoClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -58,7 +58,7 @@ public class AiMessageServiceImpl implements AiMessageService {
     // 移除AgentPropertiesService依赖，不再需要
     private final UserService userService;
     private final SparkAIClient sparkAIClient;
-    private final DoubaoStreamClient doubaoStreamClient;
+    private final DoubaoClient doubaoClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final SseConfig sseConfig;
 
@@ -163,7 +163,7 @@ public class AiMessageServiceImpl implements AiMessageService {
 
                 } else if ("doubao".equals(aiProperties.getAiType())) {
                     // 使用豆包AI
-                    doubaoStreamClient.chatStream(
+                    doubaoClient.chatStream(
                             userMessage,
                             historyJson,
                             true,
@@ -374,7 +374,7 @@ public class AiMessageServiceImpl implements AiMessageService {
 
                     } else if ("doubao".equals(aiProperties.getAiType())) {
                         // 使用豆包AI
-                        doubaoStreamClient.chatStream(
+                        doubaoClient.chatStream(
                                 userMessage,
                                 historyJson,
                                 true,
