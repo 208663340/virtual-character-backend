@@ -23,6 +23,7 @@ import com.hewei.hzyjy.xunzhi.service.UserService;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AIContentAccumulator;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.RoleContent;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.SparkAIClient;
+import com.hewei.hzyjy.xunzhi.toolkit.doubao.DoubaoClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -57,6 +58,7 @@ public class AiMessageServiceImpl implements AiMessageService {
     // 移除AgentPropertiesService依赖，不再需要
     private final UserService userService;
     private final SparkAIClient sparkAIClient;
+    private final DoubaoClient doubaoClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final SseConfig sseConfig;
 
@@ -80,10 +82,16 @@ public class AiMessageServiceImpl implements AiMessageService {
             long startTime = System.currentTimeMillis();
             
             try {
-                // 1. 验证AI配置
-                AiPropertiesDO aiProperties = aiPropertiesService.getById(aiId);
-                if (aiProperties == null || aiProperties.getDelFlag() == 1 || aiProperties.getIsEnabled() == 0) {
-                    throw new ClientException("AI配置不存在或已禁用");
+                // 1. 验证AI配置，如果未指定则使用默认豆包配置
+                AiPropertiesDO aiProperties;
+                if (aiId == null) {
+                    log.info("未指定AI ID，使用默认豆包配置");
+                    aiProperties = aiPropertiesService.getDefaultDoubaoConfig();
+                } else {
+                    aiProperties = aiPropertiesService.getById(aiId);
+                    if (aiProperties == null || aiProperties.getDelFlag() == 1 || aiProperties.getIsEnabled() == 0) {
+                        throw new ClientException("AI配置不存在或已禁用");
+                    }
                 }
                 
                 // 2. 处理历史消息
@@ -118,6 +126,44 @@ public class AiMessageServiceImpl implements AiMessageService {
                 if ("generalv3.5".equals(aiProperties.getAiType())) {
                     // 使用星火AI
                     sparkAIClient.chatStream(
+                            userMessage,
+                            historyJson,
+                            true,
+                            new OutputStream() {
+                                @Override
+                                public void write(int b) { /* 不需要实现 */ }
+
+                                @Override
+                                public void write(byte[] b, int off, int len) throws IOException {
+                                    try {
+                                        // 发送数据到前端
+                                        String jsonChunk = new String(b, off, len);
+                                        emitter.send(SseEmitter.event().data(jsonChunk));
+
+                                        // 累积内容到字符串
+                                        accumulator.appendChunk(b);
+                                        
+                                        // 发送心跳保持连接活跃
+                                        if (sseConfig.getEnableHeartbeat() && System.currentTimeMillis() % sseConfig.getHeartbeatInterval() < 100) {
+                                            emitter.send(SseEmitter.event().name("heartbeat").data("ping"));
+                                        }
+                                    } catch (IOException e) {
+                                        log.error("SSE数据发送失败", e);
+                                        throw e;
+                                    }
+                                }
+
+                                @Override
+                                public void flush() { /* 确保数据发送 */ }
+                            },data -> {
+                            },
+                            aiProperties.getApiKey(),
+                            aiProperties.getAiType()
+                    );
+
+                } else if ("doubao".equals(aiProperties.getAiType())) {
+                    // 使用豆包AI
+                    doubaoClient.chatStream(
                             userMessage,
                             historyJson,
                             true,
@@ -250,11 +296,17 @@ public class AiMessageServiceImpl implements AiMessageService {
                 long startTime = System.currentTimeMillis();
                 
                 try {
-                    // 1. 验证AI配置
-                    AiPropertiesDO aiProperties = aiPropertiesService.getById(aiId);
-                    if (aiProperties == null || aiProperties.getDelFlag() == 1 || aiProperties.getIsEnabled() == 0) {
-                        sink.error(new ClientException("AI配置不存在或已禁用"));
-                        return;
+                    // 1. 验证AI配置，如果未指定则使用默认豆包配置
+                    AiPropertiesDO aiProperties;
+                    if (aiId == null) {
+                        log.info("未指定AI ID，使用默认豆包配置");
+                        aiProperties = aiPropertiesService.getDefaultDoubaoConfig();
+                    } else {
+                        aiProperties = aiPropertiesService.getById(aiId);
+                        if (aiProperties == null || aiProperties.getDelFlag() == 1 || aiProperties.getIsEnabled() == 0) {
+                            sink.error(new ClientException("AI配置不存在或已禁用"));
+                            return;
+                        }
                     }
                     
                     // 2. 处理历史消息
@@ -289,6 +341,40 @@ public class AiMessageServiceImpl implements AiMessageService {
                     if ("generalv3.5".equals(aiProperties.getAiType())) {
                         // 使用星火AI
                         sparkAIClient.chatStream(
+                                userMessage,
+                                historyJson,
+                                true,
+                                new OutputStream() {
+                                    @Override
+                                    public void write(int b) { /* 不需要实现 */ }
+
+                                    @Override
+                                    public void write(byte[] b, int off, int len) throws IOException {
+                                        try {
+                                            // 发送数据到前端
+                                            String jsonChunk = new String(b, off, len);
+                                            sink.next(jsonChunk);
+
+                                            // 累积内容到字符串
+                                            accumulator.appendChunk(b);
+                                            
+                                        } catch (Exception e) {
+                                            log.error("Flux数据发送失败", e);
+                                            sink.error(e);
+                                        }
+                                    }
+
+                                    @Override
+                                    public void flush() { /* 确保数据发送 */ }
+                                },data -> {
+                                },
+                                aiProperties.getApiKey(),
+                                aiProperties.getAiType()
+                        );
+
+                    } else if ("doubao".equals(aiProperties.getAiType())) {
+                        // 使用豆包AI
+                        doubaoClient.chatStream(
                                 userMessage,
                                 historyJson,
                                 true,

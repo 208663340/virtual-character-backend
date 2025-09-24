@@ -185,6 +185,27 @@ public class AiPropertiesServiceImpl extends ServiceImpl<AiPropertiesMapper, AiP
         return listEnabledAiProperties();
     }
 
+    @Override
+    public AiPropertiesDO getEnabledByAiType(String aiType) {
+        LambdaQueryWrapper<AiPropertiesDO> queryWrapper = Wrappers.lambdaQuery(AiPropertiesDO.class)
+                .eq(AiPropertiesDO::getDelFlag, 0)
+                .eq(AiPropertiesDO::getIsEnabled, 1)
+                .eq(AiPropertiesDO::getAiType, aiType)
+                .orderByDesc(AiPropertiesDO::getCreateTime)
+                .last("LIMIT 1");
+        
+        return baseMapper.selectOne(queryWrapper);
+    }
+
+    @Override
+    public AiPropertiesDO getDefaultDoubaoConfig() {
+        AiPropertiesDO doubaoConfig = getEnabledByAiType("doubao");
+        if (doubaoConfig == null) {
+            throw new ClientException("豆包AI配置不存在或未启用");
+        }
+        return doubaoConfig;
+    }
+
     /**
      * API密钥脱敏处理
      */
