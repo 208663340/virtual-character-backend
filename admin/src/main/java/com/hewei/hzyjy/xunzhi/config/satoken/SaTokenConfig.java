@@ -26,6 +26,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
                     .notMatch("/api/xunzhi/v1/users/register")          // 排除注册接口
                     .notMatch("/api/xunzhi/v1/users/has-username") // 排除用户名检查接口
                     .notMatch("/api/xunzhi/v1/ai/doubao/**")   // 排除AI控制器中的豆包接口
+                    .notMatch("/api/xunzhi/v1/ai/roleplay/**") // 排除AI角色扮演相关接口
                     .check(() -> StpUtil.checkLogin());        // 校验是否登录
         })).addPathPatterns("/**");
     }
