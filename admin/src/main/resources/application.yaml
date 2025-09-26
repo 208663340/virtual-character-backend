@@ -61,6 +61,41 @@ doubao:
   connect-timeout: 20  # 连接超时（秒）
   retry-times: 2  # 重试次数
 
+# 火山引擎配置（基于官方示例）
+volcengine:
+  api-key: 4826211121  # 对应官方示例中的APP_ID
+  access-key: PGDCQ9Xs3ZkRjkbytNikG9Jq4iNMnfUY  # 对应官方示例中的ACCESS_TOKEN
+  region: volcano_icl  # 默认区域
+  tts:
+    default-voice: BV001  # 基于官方示例
+    default-format: mp3
+    default-speed: 1.0
+    default-pitch: 1.0
+    default-volume: 1.0
+    default-emotion: happy
+  voice-training:
+    base-url: https://openspeech.bytedance.com/api/v1/voice_training
+    min-audio-files: 10
+    max-audio-files: 100
+    max-file-size: 10485760  # 10MB
+    supported-formats: ["wav", "mp3"]
+    supported-training-types: ["standard", "premium"]
+    supported-languages: ["zh-CN", "en-US"]
+    default-training-duration: 30
+
+# Coze工作流配置
+coze:
+  api-key: pat_6IH59ZLaCWXMXL5qdSCjkvU4Y3sMkJW9Z2gVe0mjEn1Q0mvFfyp1SWGvv9ChEMyK  # Coze API密钥
+  base-url: https://api.coze.cn  # API基础URL
+  timeout: 30000  # 超时时间（毫秒）
+  connect-timeout: 10000  # 连接超时时间（毫秒）
+  read-timeout: 30000  # 读取超时时间（毫秒）
+  retry-times: 2  # 重试次数
+  workflow:
+    default-workflow-id: ${COZE_DEFAULT_WORKFLOW_ID:test-workflow-id}  # 默认工作流ID
+    enable-async: true  # 是否启用异步执行
+    max-concurrency: 10  # 最大并发数
+
 xunzhi-agent:
   flow-limit:
     enable: true
