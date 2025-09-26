@@ -83,6 +83,19 @@ volcengine:
     supported-languages: ["zh-CN", "en-US"]
     default-training-duration: 30
 
+# Coze工作流配置
+coze:
+  api-key: pat_6IH59ZLaCWXMXL5qdSCjkvU4Y3sMkJW9Z2gVe0mjEn1Q0mvFfyp1SWGvv9ChEMyK  # Coze API密钥
+  base-url: https://api.coze.cn  # API基础URL
+  timeout: 30000  # 超时时间（毫秒）
+  connect-timeout: 10000  # 连接超时时间（毫秒）
+  read-timeout: 30000  # 读取超时时间（毫秒）
+  retry-times: 2  # 重试次数
+  workflow:
+    default-workflow-id: ${COZE_DEFAULT_WORKFLOW_ID:test-workflow-id}  # 默认工作流ID
+    enable-async: true  # 是否启用异步执行
+    max-concurrency: 10  # 最大并发数
+
 xunzhi-agent:
   flow-limit:
     enable: true
