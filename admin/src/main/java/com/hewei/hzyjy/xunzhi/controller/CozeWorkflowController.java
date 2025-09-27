@@ -2,10 +2,14 @@ package com.hewei.hzyjy.xunzhi.controller;
 
 import com.hewei.hzyjy.xunzhi.common.convention.result.Result;
 import com.hewei.hzyjy.xunzhi.common.convention.result.Results;
-import com.hewei.hzyjy.xunzhi.toolkit.coze.CozeClient;
+import com.hewei.hzyjy.xunzhi.dto.req.coze.CozeWorkflowStreamReqDTO;
+import com.hewei.hzyjy.xunzhi.service.CozeWorkflowService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,9 +22,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/xunzhi/v1/coze")
 @RequiredArgsConstructor
+@Validated
 public class CozeWorkflowController {
 
-    private final CozeClient cozeClient;
+    private final CozeWorkflowService cozeWorkflowService;
 
     /**
      * 健康检查
@@ -34,121 +39,47 @@ public class CozeWorkflowController {
         healthData.put("timestamp", System.currentTimeMillis());
         
         try {
-            // 检查Coze客户端是否正常
-            boolean isHealthy = cozeClient.healthCheck();
-            healthData.put("cozeClient", isHealthy ? "healthy" : "unhealthy");
+            // 检查Coze工作流服务是否正常
+            boolean isHealthy = cozeWorkflowService.healthCheck();
+            healthData.put("cozeWorkflowService", isHealthy ? "healthy" : "unhealthy");
             
             return Results.success(healthData);
         } catch (Exception e) {
             log.error("Coze健康检查失败", e);
-            healthData.put("cozeClient", "error");
+            healthData.put("cozeWorkflowService", "error");
             healthData.put("error", e.getMessage());
             return Results.success(healthData);
         }
     }
 
-    /**
-     * 获取工作流列表
-     */
-    @GetMapping("/workflows")
-    public Result<Map<String, Object>> getWorkflows() {
-        log.info("收到获取工作流列表请求");
-        
-        try {
-            Map<String, Object> workflows = cozeClient.getWorkflowList();
-            return Results.success(workflows);
-        } catch (Exception e) {
-            log.error("获取工作流列表失败", e);
-            Map<String, Object> errorData = new HashMap<>();
-            errorData.put("error", "获取工作流列表失败: " + e.getMessage());
-            return Results.success(errorData);
-        }
-    }
 
     /**
-     * 执行工作流（最简单版本）
+     * SSE流式执行工作流
      * @param workflowId 工作流ID
-     * @param parameters 执行参数（可选）
+     * @param requestParam 执行参数DTO
      */
-    @PostMapping("/workflow/{workflowId}/run")
-    public Result<Map<String, Object>> runWorkflow(
+    @PostMapping(value = "/workflow/{workflowId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> runWorkflowStream(
             @PathVariable String workflowId,
-            @RequestBody(required = false) Map<String, Object> parameters) {
+            @RequestBody CozeWorkflowStreamReqDTO requestParam) {
         
-        log.info("收到工作流执行请求，workflowId: {}", workflowId);
+        log.info("收到工作流SSE流式执行请求，workflowId: {}, userInput: {}", workflowId, requestParam.getUserInput());
         
-        try {
-            // 如果没有传参数，使用空Map
-            if (parameters == null) {
-                parameters = new HashMap<>();
-            }
-            
-            // 调用CozeClient执行工作流
-            Object result = cozeClient.runWorkflow(workflowId, parameters);
-            
-            // 构造返回结果
-            Map<String, Object> response = new HashMap<>();
-            response.put("workflowId", workflowId);
-            response.put("status", "completed");
-            response.put("result", result);
-            response.put("timestamp", System.currentTimeMillis());
-            
-            return Results.success(response);
-            
-        } catch (Exception e) {
-            log.error("工作流执行失败，workflowId: {}", workflowId, e);
-            
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("workflowId", workflowId);
-            errorResponse.put("status", "failed");
-            errorResponse.put("error", e.getMessage());
-            errorResponse.put("timestamp", System.currentTimeMillis());
-            
-            return Results.success(errorResponse);
-        }
+        return cozeWorkflowService.runWorkflowStream(workflowId, requestParam);
     }
 
     /**
-     * 执行工作流（GET方式，更简单）
+     * SSE流式执行工作流（GET方式，简单）
      * @param workflowId 工作流ID
      * @param message 消息参数（可选）
      */
-    @GetMapping("/workflow/{workflowId}/run")
-    public Result<Map<String, Object>> runWorkflowSimple(
+    @GetMapping(value = "/workflow/{workflowId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> runWorkflowStreamSimple(
             @PathVariable String workflowId,
             @RequestParam(required = false, defaultValue = "Hello") String message) {
         
-        log.info("收到简单工作流执行请求，workflowId: {}, message: {}", workflowId, message);
+        log.info("收到简单工作流SSE流式执行请求，workflowId: {}, message: {}", workflowId, message);
         
-        try {
-            // 构造简单参数
-            Map<String, Object> parameters = new HashMap<>();
-            parameters.put("message", message);
-            
-            // 调用CozeClient执行工作流
-            Object result = cozeClient.runWorkflow(workflowId, parameters);
-            
-            // 构造返回结果
-            Map<String, Object> response = new HashMap<>();
-            response.put("workflowId", workflowId);
-            response.put("input", message);
-            response.put("output", result);
-            response.put("status", "success");
-            response.put("timestamp", System.currentTimeMillis());
-            
-            return Results.success(response);
-            
-        } catch (Exception e) {
-            log.error("简单工作流执行失败，workflowId: {}", workflowId, e);
-            
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("workflowId", workflowId);
-            errorResponse.put("input", message);
-            errorResponse.put("status", "error");
-            errorResponse.put("error", e.getMessage());
-            errorResponse.put("timestamp", System.currentTimeMillis());
-            
-            return Results.success(errorResponse);
-        }
+        return cozeWorkflowService.runWorkflowStreamSimple(workflowId, message);
     }
 }

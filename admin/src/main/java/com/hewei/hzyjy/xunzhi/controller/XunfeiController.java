@@ -35,10 +35,11 @@ public class XunfeiController {
     private final XingChenAIClient xingChenAIClient;
 
     /**
-     * 实时音频文件转文字
-     * @param audioFile 音频文件
-     * @return 转换结果
+     * 音频转文字接口（已弃用）
+     * @deprecated 请使用WebSocket接口进行实时语音转写
+     * WebSocket地址: ws://localhost:8080/api/xunzhi/v1/xunfei/audio-to-text
      */
+    @Deprecated
     @PostMapping("/audio-to-text")
     public Result<CompletableFuture<String>> convertAudioToText(
             @RequestParam("file") MultipartFile audioFile) {
