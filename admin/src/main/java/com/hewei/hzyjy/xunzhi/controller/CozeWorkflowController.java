@@ -2,16 +2,15 @@ package com.hewei.hzyjy.xunzhi.controller;
 
 import com.hewei.hzyjy.xunzhi.common.convention.result.Result;
 import com.hewei.hzyjy.xunzhi.common.convention.result.Results;
-import com.hewei.hzyjy.xunzhi.toolkit.coze.CozeClient;
-import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AIContentAccumulator;
+import com.hewei.hzyjy.xunzhi.dto.req.coze.CozeWorkflowStreamReqDTO;
+import com.hewei.hzyjy.xunzhi.service.CozeWorkflowService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
-import java.io.IOException;
-import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,9 +22,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/xunzhi/v1/coze")
 @RequiredArgsConstructor
+@Validated
 public class CozeWorkflowController {
 
-    private final CozeClient cozeClient;
+    private final CozeWorkflowService cozeWorkflowService;
 
     /**
      * 健康检查
@@ -39,14 +39,14 @@ public class CozeWorkflowController {
         healthData.put("timestamp", System.currentTimeMillis());
         
         try {
-            // 检查Coze客户端是否正常
-            boolean isHealthy = cozeClient.healthCheck();
-            healthData.put("cozeClient", isHealthy ? "healthy" : "unhealthy");
+            // 检查Coze工作流服务是否正常
+            boolean isHealthy = cozeWorkflowService.healthCheck();
+            healthData.put("cozeWorkflowService", isHealthy ? "healthy" : "unhealthy");
             
             return Results.success(healthData);
         } catch (Exception e) {
             log.error("Coze健康检查失败", e);
-            healthData.put("cozeClient", "error");
+            healthData.put("cozeWorkflowService", "error");
             healthData.put("error", e.getMessage());
             return Results.success(healthData);
         }
@@ -56,73 +56,16 @@ public class CozeWorkflowController {
     /**
      * SSE流式执行工作流
      * @param workflowId 工作流ID
-     * @param parameters 执行参数（可选）
+     * @param requestParam 执行参数DTO
      */
     @PostMapping(value = "/workflow/{workflowId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> runWorkflowStream(
             @PathVariable String workflowId,
-            @RequestBody(required = false) Map<String, Object> parameters) {
+            @RequestBody CozeWorkflowStreamReqDTO requestParam) {
         
-        log.info("收到工作流SSE流式执行请求，workflowId: {}", workflowId);
+        log.info("收到工作流SSE流式执行请求，workflowId: {}, userInput: {}", workflowId, requestParam.getUserInput());
         
-        return Flux.create(sink -> {
-            try {
-                // 如果没有传参数，使用空Map
-                if (parameters == null) {
-                    parameters = new HashMap<>();
-                }
-                
-                // 内容累积器
-                AIContentAccumulator accumulator = new AIContentAccumulator();
-                
-                // 调用CozeClient的SSE流式执行
-                cozeClient.runWorkflowSSE(
-                    workflowId,
-                    parameters,
-                    new OutputStream() {
-                        @Override
-                        public void write(int b) throws IOException {
-                            // 不需要实现
-                        }
-
-                        @Override
-                        public void write(byte[] b, int off, int len) throws IOException {
-                            try {
-                                // 发送数据到前端
-                                String jsonChunk = new String(b, off, len);
-                                sink.next(jsonChunk);
-                                
-                                // 累积内容到字符串
-                                accumulator.appendChunk(b);
-                                
-                            } catch (Exception e) {
-                                log.error("Coze SSE数据发送失败", e);
-                                sink.error(e);
-                            }
-                        }
-
-                        @Override
-                        public void flush() throws IOException {
-                            // 确保数据发送
-                        }
-                    },
-                    data -> {
-                        // 回调函数，处理接收到的数据
-                        if (data != null && !data.trim().isEmpty()) {
-                            log.debug("[Coze SSE数据接收] {}", data);
-                        }
-                    }
-                );
-                
-                sink.next("[DONE]");
-                sink.complete();
-                
-            } catch (Exception e) {
-                log.error("Coze工作流SSE执行失败，workflowId: {}", workflowId, e);
-                sink.next("错误: " + e.getMessage());
-                sink.error(e);
-            }
-        });
+        return cozeWorkflowService.runWorkflowStream(workflowId, requestParam);
     }
 
     /**
@@ -137,62 +80,6 @@ public class CozeWorkflowController {
         
         log.info("收到简单工作流SSE流式执行请求，workflowId: {}, message: {}", workflowId, message);
         
-        return Flux.create(sink -> {
-            try {
-                // 构造简单参数
-                Map<String, Object> parameters = new HashMap<>();
-                parameters.put("message", message);
-                
-                // 内容累积器
-                AIContentAccumulator accumulator = new AIContentAccumulator();
-                
-                // 调用CozeClient的SSE流式执行
-                cozeClient.runWorkflowSSE(
-                    workflowId,
-                    parameters,
-                    new OutputStream() {
-                        @Override
-                        public void write(int b) throws IOException {
-                            // 不需要实现
-                        }
-
-                        @Override
-                        public void write(byte[] b, int off, int len) throws IOException {
-                            try {
-                                // 发送数据到前端
-                                String jsonChunk = new String(b, off, len);
-                                sink.next(jsonChunk);
-                                
-                                // 累积内容到字符串
-                                accumulator.appendChunk(b);
-                                
-                            } catch (Exception e) {
-                                log.error("Coze SSE数据发送失败", e);
-                                sink.error(e);
-                            }
-                        }
-
-                        @Override
-                        public void flush() throws IOException {
-                            // 确保数据发送
-                        }
-                    },
-                    data -> {
-                        // 回调函数，处理接收到的数据
-                        if (data != null && !data.trim().isEmpty()) {
-                            log.debug("[Coze SSE数据接收] {}", data);
-                        }
-                    }
-                );
-                
-                sink.next("[DONE]");
-                sink.complete();
-                
-            } catch (Exception e) {
-                log.error("简单Coze工作流SSE执行失败，workflowId: {}", workflowId, e);
-                sink.next("错误: " + e.getMessage());
-                sink.error(e);
-            }
-        });
+        return cozeWorkflowService.runWorkflowStreamSimple(workflowId, message);
     }
 }

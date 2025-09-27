@@ -117,7 +117,14 @@
                 <artifactId>guava</artifactId>
                 <version>${guava.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.coze</groupId>
+                <artifactId>coze-api</artifactId>
+                <version>LATEST</version>
+            </dependency>
+
         </dependencies>
+
     </dependencyManagement>
 
     <build>
