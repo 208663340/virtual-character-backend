@@ -9,6 +9,7 @@ import com.hewei.hzyjy.xunzhi.config.coze.CozeProperties;
 import io.reactivex.Flowable;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -99,6 +100,93 @@ public class CozeClient {
                 }
             }
         });
+    }
+    
+    /**
+     * 流式执行工作流（返回Flux用于真正的流式处理）
+     * @param workflowId 工作流ID
+     * @param parameters 输入参数
+     * @return Flux<String> 流式数据
+     */
+    public Flux<String> runWorkflowStreamReactive(String workflowId, Map<String, Object> parameters) {
+        log.info("开始响应式流式执行Coze工作流，workflowId: {}, parameters: {}", workflowId, parameters);
+        
+        return Flux.create(sink -> {
+            try {
+                // 构建工作流执行请求
+                RunWorkflowReq request = RunWorkflowReq.builder()
+                        .workflowID(workflowId)
+                        .parameters(parameters != null ? parameters : new HashMap<>())
+                        .build();
+                
+                log.info("[CozeClient] 构建的请求: {}", request);
+                
+                // 获取流式事件
+                Flowable<WorkflowEvent> flowable = cozeAPI.workflows().runs().stream(request);
+                log.info("[CozeClient] 获取到Flowable流式事件");
+                
+                // 使用非阻塞方式处理事件流
+                flowable.subscribe(
+                    event -> {
+                        log.info("[CozeClient] 收到事件: {}", event);
+                        // 处理每个事件
+                        WorkflowEventType eventType = event.getEvent();
+                        String jsonData = "";
+                        
+                        if (eventType == WorkflowEventType.MESSAGE) {
+                            if (event.getMessage() != null) {
+                                jsonData = "{\"type\":\"content\",\"content\":\"" + escapeJsonString(String.valueOf(event.getMessage())) + "\"}";
+                            }
+                        } else if (eventType == WorkflowEventType.ERROR) {
+                            if (event.getError() != null) {
+                                jsonData = "{\"type\":\"error\",\"error\":\"" + escapeJsonString(String.valueOf(event.getError())) + "\"}";
+                            }
+                        } else if (eventType == WorkflowEventType.DONE) {
+                            jsonData = "{\"type\":\"done\",\"content\":\"\"}";
+                        }
+                        
+                        if (!jsonData.isEmpty()) {
+                            log.info("[CozeClient] 发送数据: {}", jsonData);
+                            // 立即发送数据到前端（Spring WebFlux会自动添加SSE格式）
+                            sink.next(jsonData);
+                        }
+                    },
+                    error -> {
+                        // 处理错误
+                        log.error("[CozeClient] Coze工作流流式执行出错", error);
+                        sink.next("{\"type\":\"error\",\"error\":\"" + escapeJsonString(error.getMessage()) + "\"}");
+                        sink.error(error);
+                    },
+                    () -> {
+                        // 完成处理
+                        log.info("[CozeClient] Coze工作流流式执行完成，workflowId: {}", workflowId);
+                        sink.next("{\"type\":\"done\",\"content\":\"\"}");
+                        sink.complete();
+                    }
+                );
+                
+            } catch (Exception e) {
+                log.error("[CozeClient] Coze工作流流式执行初始化失败，workflowId: {}", workflowId, e);
+                sink.next("{\"type\":\"error\",\"error\":\"" + escapeJsonString(e.getMessage()) + "\"}");
+                sink.error(e);
+            }
+        });
+    }
+    
+    /**
+     * 转义JSON字符串中的特殊字符
+     * @param str 原始字符串
+     * @return 转义后的字符串
+     */
+    private String escapeJsonString(String str) {
+        if (str == null) {
+            return "";
+        }
+        return str.replace("\\", "\\\\")
+                  .replace("\"", "\\\"")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t");
     }
     
     

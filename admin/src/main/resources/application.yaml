@@ -63,8 +63,8 @@ doubao:
 
 # 火山引擎配置（基于官方示例）
 volcengine:
-  api-key: 4826211121  # 对应官方示例中的APP_ID
-  access-key: PGDCQ9Xs3ZkRjkbytNikG9Jq4iNMnfUY  # 对应官方示例中的ACCESS_TOKEN
+  api-key: 6690375602  # 对应官方示例中的APP_ID
+  access-key: M2S3xBuHbaQn1wHsSzvjzBZuiLZGngTt  # 对应官方示例中的ACCESS_TOKEN
   region: volcano_icl  # 默认区域
   tts:
     default-voice: BV001  # 基于官方示例
@@ -85,7 +85,7 @@ volcengine:
 
 # Coze工作流配置
 coze:
-  api-key: pat_6IH59ZLaCWXMXL5qdSCjkvU4Y3sMkJW9Z2gVe0mjEn1Q0mvFfyp1SWGvv9ChEMyK  # Coze API密钥
+  api-key: pat_PXqpYfiJrmCVYTH3fvGHvvl6nACH0FVW8DLA2rxE94YPaBaEIansXogq3IHqaZY5  # Coze API密钥
   base-url: https://api.coze.cn  # API基础URL
   timeout: 30000  # 超时时间（毫秒）
   connect-timeout: 10000  # 连接超时时间（毫秒）
