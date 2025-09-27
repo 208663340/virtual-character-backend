@@ -65,7 +65,16 @@ public class CozeWorkflowController {
         
         log.info("收到工作流SSE流式执行请求，workflowId: {}, userInput: {}", workflowId, requestParam.getUserInput());
         
-        return cozeWorkflowService.runWorkflowStream(workflowId, requestParam);
+        return cozeWorkflowService.runWorkflowStream(workflowId, requestParam)
+                .doOnNext(data -> {
+                    log.info("[Controller SSE数据] workflowId: {}, data: {}", workflowId, data);
+                })
+                .doOnComplete(() -> {
+                    log.info("[Controller SSE完成] workflowId: {}", workflowId);
+                })
+                .doOnError(error -> {
+                    log.error("[Controller SSE错误] workflowId: {}, error: {}", workflowId, error.getMessage(), error);
+                });
     }
 
     /**
@@ -80,6 +89,15 @@ public class CozeWorkflowController {
         
         log.info("收到简单工作流SSE流式执行请求，workflowId: {}, message: {}", workflowId, message);
         
-        return cozeWorkflowService.runWorkflowStreamSimple(workflowId, message);
+        return cozeWorkflowService.runWorkflowStreamSimple(workflowId, message)
+                .doOnNext(data -> {
+                    log.info("[Controller Simple SSE数据] workflowId: {}, data: {}", workflowId, data);
+                })
+                .doOnComplete(() -> {
+                    log.info("[Controller Simple SSE完成] workflowId: {}", workflowId);
+                })
+                .doOnError(error -> {
+                    log.error("[Controller Simple SSE错误] workflowId: {}, error: {}", workflowId, error.getMessage(), error);
+                });
     }
 }

@@ -4,6 +4,7 @@ import com.hewei.hzyjy.xunzhi.common.convention.result.Result;
 import com.hewei.hzyjy.xunzhi.common.convention.result.Results;
 import com.hewei.hzyjy.xunzhi.common.util.FileUploadUtil;
 import com.hewei.hzyjy.xunzhi.dto.resp.file.FileUploadResult;
+import com.hewei.hzyjy.xunzhi.dto.resp.xunfei.AudioTranscriptionRespDTO;
 import com.hewei.hzyjy.xunzhi.dto.resp.xunfei.ExpressionRecognitionResult;
 import com.hewei.hzyjy.xunzhi.service.AudioTranscriptionService;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.XingChenAIClient;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -64,19 +66,62 @@ public class XunfeiController {
      * @return 转换结果
      */
     @PostMapping("/audio-transcribe")
-    public Result<String> transcribeAudio(
+    public Result<AudioTranscriptionRespDTO> transcribeAudio(
             @RequestParam("file") MultipartFile audioFile) {
         
         try {
+            long startTime = System.currentTimeMillis();
+            
             // 使用同步转写，不需要中间结果回调
-            String result = audioTranscriptionService.transcribeSync(audioFile, null);
-            return Results.success(result);
+            String transcriptionText = audioTranscriptionService.transcribeSync(audioFile, null);
+            
+            long endTime = System.currentTimeMillis();
+            
+            // 构建响应DTO
+            AudioTranscriptionRespDTO respDTO = new AudioTranscriptionRespDTO();
+            respDTO.setSuccess(true);
+            respDTO.setTranscriptionText(transcriptionText);
+            respDTO.setAudioFileSize(audioFile.getSize());
+            respDTO.setAudioFormat(getAudioFormat(audioFile.getOriginalFilename()));
+            respDTO.setTranscriptionStartTime(startTime);
+            respDTO.setTranscriptionEndTime(endTime);
+            respDTO.setTranscriptionDuration(endTime - startTime);
+            respDTO.setLanguage("zh-CN");
+            respDTO.setOriginalFileName(audioFile.getOriginalFilename());
+            respDTO.setRequestId(generateRequestId());
+            
+            return Results.success(respDTO);
         } catch (Exception e) {
             log.error("音频转写失败", e);
-            throw new RuntimeException("音频转写失败: " + e.getMessage(), e);
+            
+            // 构建失败响应DTO
+            AudioTranscriptionRespDTO errorRespDTO = new AudioTranscriptionRespDTO();
+            errorRespDTO.setSuccess(false);
+            errorRespDTO.setErrorMessage(e.getMessage());
+            errorRespDTO.setOriginalFileName(audioFile.getOriginalFilename());
+            errorRespDTO.setAudioFileSize(audioFile.getSize());
+            errorRespDTO.setRequestId(generateRequestId());
+            
+            return Results.success(errorRespDTO);
         }
     }
     
+    /**
+     * 生成请求ID
+     */
+    private String generateRequestId() {
+        return UUID.randomUUID().toString().replace("-", "");
+    }
+    
+    /**
+     * 根据文件名获取音频格式
+     */
+    private String getAudioFormat(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            return "unknown";
+        }
+        return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+    }
 
 
     /**
