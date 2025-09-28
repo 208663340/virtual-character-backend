@@ -353,14 +353,19 @@ public class AiMessageServiceImpl implements AiMessageService {
                                         try {
                                             // 发送数据到前端
                                             String jsonChunk = new String(b, off, len);
-                                            sink.next(jsonChunk);
+                                            if (!sink.isCancelled()) {
+                                                // 立即发送数据，不等待缓冲
+                                                sink.next(jsonChunk);
+                                            }
 
                                             // 累积内容到字符串
                                             accumulator.appendChunk(b);
                                             
                                         } catch (Exception e) {
                                             log.error("Flux数据发送失败", e);
-                                            sink.error(e);
+                                            if (!sink.isCancelled()) {
+                                                sink.error(e);
+                                            }
                                         }
                                     }
 
@@ -387,14 +392,19 @@ public class AiMessageServiceImpl implements AiMessageService {
                                         try {
                                             // 发送数据到前端
                                             String jsonChunk = new String(b, off, len);
-                                            sink.next(jsonChunk);
+                                            if (!sink.isCancelled()) {
+                                                // 立即发送数据，不等待缓冲
+                                                sink.next(jsonChunk);
+                                            }
 
                                             // 累积内容到字符串
                                             accumulator.appendChunk(b);
                                             
                                         } catch (Exception e) {
                                             log.error("Flux数据发送失败", e);
-                                            sink.error(e);
+                                            if (!sink.isCancelled()) {
+                                                sink.error(e);
+                                            }
                                         }
                                     }
 

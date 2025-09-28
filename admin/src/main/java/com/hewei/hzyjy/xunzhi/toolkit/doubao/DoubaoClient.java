@@ -156,9 +156,19 @@ public class DoubaoClient {
                         // 打印到控制台
                         log.debug("[豆包数据接收] {}", processedLine);
 
-                        // 发送处理后的数据
-                        outputStream.write(processedLine.getBytes(StandardCharsets.UTF_8));
-                        outputStream.flush();
+                        // 立即发送处理后的数据，确保流式输出
+                        byte[] dataBytes = processedLine.getBytes(StandardCharsets.UTF_8);
+                        outputStream.write(dataBytes);
+                        outputStream.flush(); // 强制刷新缓冲区
+                        
+                        // 添加短暂延迟，模拟真实的流式效果
+                        try {
+                            Thread.sleep(10); // 10ms延迟
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            log.warn("[DoubaoStreamClient] 线程被中断");
+                            break;
+                        }
                     } else {
                         log.debug("[数据过滤] 跳过无效行: {}", line);
                     }
