@@ -9,6 +9,9 @@ import com.hewei.hzyjy.xunzhi.dto.resp.ai.roleplay.VoiceTrainingUploadRespDTO;
 import com.hewei.hzyjy.xunzhi.toolkit.volcengine.VolcengineClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -75,6 +78,55 @@ public class AiRoleplayController {
         } catch (Exception e) {
             log.error("查询音色训练状态失败", e);
             return new Result<VoiceTrainingUploadRespDTO>().setCode("500").setMessage("查询音色训练状态失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * TTS语音合成（直接返回MP3文件流）
+     */
+    @PostMapping("/tts/synthesis/stream")
+    public ResponseEntity<byte[]> ttsSynthesisStream(@RequestBody TtsSynthesisReqDTO request) {
+        
+        log.info("收到TTS合成流式请求，文本长度: {}, 语音类型: {}, 语速: {}", 
+                request.getText() != null ? request.getText().length() : 0, 
+                request.getVoiceType(), request.getSpeed());
+        
+        try {
+            // 1. 参数验证
+            if (request.getText() == null || request.getText().trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body("文本内容不能为空".getBytes("UTF-8"));
+            }
+            
+            if (request.getText().length() > 1000) {
+                return ResponseEntity.badRequest()
+                        .body("文本长度不能超过1000字符".getBytes("UTF-8"));
+            }
+            
+            // 2. 调用火山引擎TTS服务，直接获取音频数据
+            byte[] audioData = volcengineClient.ttsSynthesisRaw(request);
+            
+            // 3. 设置响应头
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("audio/mpeg"));
+            headers.setContentLength(audioData.length);
+            headers.set("Content-Disposition", "inline; filename=\"tts_audio.mp3\"");
+            headers.set("Cache-Control", "no-cache");
+            
+            log.info("TTS合成流式响应成功，音频大小: {} bytes", audioData.length);
+            
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(audioData);
+            
+        } catch (Exception e) {
+            log.error("TTS语音合成流式响应失败", e);
+            try {
+                return ResponseEntity.internalServerError()
+                        .body(("TTS语音合成失败: " + e.getMessage()).getBytes("UTF-8"));
+            } catch (Exception ex) {
+                return ResponseEntity.internalServerError().build();
+            }
         }
     }
 

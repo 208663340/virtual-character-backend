@@ -11,6 +11,7 @@ import com.hewei.hzyjy.xunzhi.common.util.SaTokenUtil;
 import com.hewei.hzyjy.xunzhi.toolkit.doubao.DoubaoClient;
 import com.hewei.hzyjy.xunzhi.toolkit.xunfei.AIContentAccumulator;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -41,17 +42,24 @@ public class AiMessageController {
     /**
      * AI聊天Flux接口（默认使用豆包大模型）
      */
-    @PreventDuplicateSubmit(
-        prefix = "ai_chat",
-        expireTime = 30,
-        waitTime = 0,
-        message = "请勿重复发送消息，请等待当前消息处理完成",
-        userLevel = true,
-        sessionLevel = true,
-        messageSeqLevel = true
-    )
+//    @PreventDuplicateSubmit(
+//        prefix = "ai_chat",
+//        expireTime = 30,
+//        waitTime = 0,
+//        message = "请勿重复发送消息，请等待当前消息处理完成",
+//        userLevel = true,
+//        sessionLevel = true,
+//        messageSeqLevel = true
+//    )
     @PostMapping(value = "/sessions/{sessionId}/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> chat(@PathVariable String sessionId, @RequestBody AiMessageReqDTO requestParam, HttpServletRequest request) {
+    public Flux<String> chat(@PathVariable String sessionId, @RequestBody AiMessageReqDTO requestParam, 
+                             HttpServletRequest request, HttpServletResponse response) {
+        // 设置SSE必要的响应头
+        response.setHeader("Cache-Control", "no-cache");
+        response.setHeader("Connection", "keep-alive");
+        response.setHeader("Access-Control-Allow-Origin", "*");
+        response.setHeader("Access-Control-Allow-Headers", "Cache-Control");
+        
         // 从token中获取用户名
         String username = saTokenUtil.getUsernameFromRequest(request);
         if (username != null) {
@@ -60,7 +68,21 @@ public class AiMessageController {
         requestParam.setSessionId(sessionId);
         
         // 如果未指定AI ID，将使用默认的豆包配置（在service层处理）
-        return aiMessageService.aiChatFlux(requestParam);
+        return aiMessageService.aiChatFlux(requestParam)
+                .map(data -> {
+                    if (data != null && !data.trim().isEmpty()) {
+                        // 检查数据是否已经包含SSE格式前缀
+                        if (data.startsWith("data: ")) {
+                            // 如果已经有data:前缀，直接返回并添加换行符
+                            return data + "\n\n";
+                        } else {
+                            // 如果没有data:前缀，则添加
+                            return "data: " + data + "\n\n";
+                        }
+                    }
+                    return "";
+                })
+                .filter(data -> !data.isEmpty()); // 过滤空数据
     }
     
     /**

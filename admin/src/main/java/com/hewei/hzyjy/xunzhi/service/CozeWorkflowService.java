@@ -11,7 +11,8 @@ public interface CozeWorkflowService {
     
     /**
      * 流式执行工作流
-     * @param workflowId 工作流ID
+     *
+     * @param workflowId   工作流ID
      * @param requestParam 请求参数DTO
      * @return 流式响应
      */
@@ -19,8 +20,9 @@ public interface CozeWorkflowService {
     
     /**
      * 简单流式执行工作流
+     *
      * @param workflowId 工作流ID
-     * @param message 消息内容
+     * @param message    消息内容
      * @return 流式响应
      */
     Flux<String> runWorkflowStreamSimple(String workflowId, String message);

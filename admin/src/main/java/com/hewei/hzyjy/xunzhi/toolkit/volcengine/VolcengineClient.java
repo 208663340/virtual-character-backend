@@ -14,6 +14,14 @@ import okhttp3.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -140,6 +148,38 @@ public class VolcengineClient {
         return response;
     }
     
+    /**
+     * TTS语音合成（直接返回音频数据）
+     */
+    public byte[] ttsSynthesisRaw(TtsSynthesisReqDTO request) throws Exception {
+        log.info("开始TTS语音合成（直接返回音频数据），文本长度: {}, 语音类型: {}", 
+                request.getText().length(), request.getVoiceType());
+        
+        // 构建火山引擎TTS请求
+        VolcengineTtsRequest ttsRequest = new VolcengineTtsRequest(request.getText());
+        
+        // 设置App信息
+        ttsRequest.getApp().setAppid(properties.getApiKey());
+        ttsRequest.getApp().setCluster(properties.getRegion());
+        
+        // 设置音频参数
+        VolcengineTtsRequest.Audio audio = ttsRequest.getAudio();
+        audio.setVoice_type(request.getVoiceType() != null ? request.getVoiceType() : "BV001");
+        audio.setEncoding(request.getAudioFormat() != null ? request.getAudioFormat() : "mp3");
+        audio.setSpeed_ratio(request.getSpeed() != null ? request.getSpeed().floatValue() : 1.0f);
+        audio.setVolume_ratio(request.getVolume() != null ? request.getVolume().floatValue() * 10 : 10.0f);
+        audio.setPitch_ratio(request.getPitch() != null ? request.getPitch().floatValue() * 10 : 10.0f);
+        
+        // 调用火山引擎TTS API
+        String responseJson = callVolcengineTtsApi(ttsRequest);
+        
+        // 解析响应并直接返回音频数据
+        byte[] audioData = parseTtsResponse(responseJson);
+        
+        log.info("TTS语音合成成功（直接返回），文件大小: {} bytes", audioData.length);
+        return audioData;
+    }
+    
     
     /**
      * 调用火山引擎TTS API（基于官方示例）
@@ -190,13 +230,48 @@ public class VolcengineClient {
     }
     
     /**
-     * 保存音频文件
+     * 保存音频文件到本地resources/audio/tts目录
      */
     private String saveAudioFile(String audioId, byte[] audioData, String format) {
-        // 这里应该保存到文件系统或云存储
-        // 暂时返回一个模拟的URL
-        String extension = format != null ? format : "mp3";
-        return "http://localhost:8002/audio/generated/" + audioId + "." + extension;
+        try {
+            // 获取当前时间作为文件夹名称
+            String dateFolder = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            
+            // 构建文件路径：resources/audio/tts/yyyy-MM-dd/audioId.format
+            String extension = format != null ? format : "mp3";
+            String fileName = audioId + "." + extension;
+            
+            // 获取resources目录的绝对路径
+            String resourcesPath = System.getProperty("user.dir") + 
+                    "/admin/src/main/resources/audio/tts/" + dateFolder;
+            
+            // 创建目录（如果不存在）
+            Path directoryPath = Paths.get(resourcesPath);
+            if (!Files.exists(directoryPath)) {
+                Files.createDirectories(directoryPath);
+                log.info("创建TTS音频存储目录: {}", directoryPath);
+            }
+            
+            // 构建完整文件路径
+            Path filePath = directoryPath.resolve(fileName);
+            
+            // 写入音频数据到文件
+            try (FileOutputStream fos = new FileOutputStream(filePath.toFile())) {
+                fos.write(audioData);
+                fos.flush();
+            }
+            
+            log.info("TTS音频文件保存成功: {}, 文件大小: {} bytes", filePath, audioData.length);
+            
+            // 返回相对路径URL，用于前端访问
+            return "/audio/tts/" + dateFolder + "/" + fileName;
+            
+        } catch (IOException e) {
+            log.error("保存TTS音频文件失败，audioId: {}, 错误: {}", audioId, e.getMessage(), e);
+            // 如果保存失败，返回一个模拟的URL
+            String extension = format != null ? format : "mp3";
+            return "http://localhost:8002/audio/generated/" + audioId + "." + extension;
+        }
     }
     
     /**
